@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#050505">
+    <meta name="color-scheme" content="dark">
+    <title>WATon - bot WhatsApp dengan alat chat</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="stylesheet" href="https://unpkg.com/aos@2.3.4/dist/aos.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ["Inter", "sans-serif"], mono: ["JetBrains Mono", "monospace"] },
+                    boxShadow: { panel: "0 24px 80px rgba(0,0,0,.5)", soft: "0 12px 40px rgba(0,0,0,.22)" }
+                }
+            }
+        };
+    </script>
+
+    <style>
+        [x-cloak] { display: none !important; }
+        * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+        html, body { height: 100%; overscroll-behavior: none; }
+        body { margin: 0; background: #030303; }
+        button, textarea, input { -webkit-font-smoothing: antialiased; }
+        ::selection { background: rgba(255,255,255,.92); color: #050505; }
+
+        .app-surface { background: radial-gradient(circle at 68% -10%, rgba(255,255,255,.045), transparent 28%), radial-gradient(circle at 20% 110%, rgba(255,255,255,.025), transparent 32%), #050505; }
+        .auth-surface { background: radial-gradient(circle at 50% -15%, rgba(255,255,255,.075), transparent 27%), radial-gradient(circle at 90% 100%, rgba(255,255,255,.025), transparent 26%), #030303; }
+        .chat-surface { background: radial-gradient(circle at 50% 20%, rgba(255,255,255,.018), transparent 35%), linear-gradient(180deg, #060606 0%, #040404 100%); }
+        .glass { background: rgba(10,10,10,.82); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); }
+        .hairline { box-shadow: inset 0 1px rgba(255,255,255,.025); }
+
+        #messages, #chatList, .custom-scroll { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.08) transparent; }
+        #messages::-webkit-scrollbar, #chatList::-webkit-scrollbar, .custom-scroll::-webkit-scrollbar { width: 5px; }
+        #messages::-webkit-scrollbar-track, #chatList::-webkit-scrollbar-track, .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+        #messages::-webkit-scrollbar-thumb, #chatList::-webkit-scrollbar-thumb, .custom-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,.08); border-radius: 999px; }
+
+        .message-row { width: 100%; min-width: 0; display: flex; flex: 0 0 auto; }
+        #messageContainer { width: 100%; display: flex; flex-direction: column; gap: 8px; }
+        .message-text { white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; line-height: 1.5; }
+        .message-time { display: inline-flex; align-items: center; white-space: nowrap; font-family: "JetBrains Mono", monospace; font-size: 8px; line-height: 1; opacity: .42; }
+        .date-separator { width: 100%; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; padding: 9px 0; }
+        .media-card { width: 250px; min-width: 250px; max-width: 250px; flex: 0 0 250px; }
+
+        .feature-toggle.active { background: rgba(255,255,255,.94); border-color: rgba(255,255,255,.94); }
+        .feature-toggle.active span { transform: translateX(16px); background: #090909; }
+
+        @media (max-width: 640px) {
+            .media-card { width: 225px; min-width: 225px; max-width: 225px; flex-basis: 225px; }
+        }
+
+        @media (max-width: 380px) {
+            .media-card { width: 205px; min-width: 205px; max-width: 205px; flex-basis: 205px; }
+        }
+    </style>
+
+    <script src="./WatonUI.js" type="text/javascript"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+
+<body x-data="watonUI()" x-init="init()" @keydown.escape.window="settingsOpen = false" class="overflow-hidden bg-black font-sans text-white antialiased">
+    <div x-cloak x-show="authLoading" class="auth-surface fixed inset-0 z-[300] flex items-center justify-center">
+        <div class="flex flex-col items-center">
+            <div class="relative flex h-14 w-14 items-center justify-center rounded-[18px] border border-white/[0.07] bg-white/[0.03] shadow-panel">
+                <i data-lucide="message-square-more" class="h-5 w-5 text-zinc-400"></i>
+                <span class="absolute -bottom-1 -right-1 h-4 w-4 rounded-full border-[3px] border-[#050505] bg-emerald-500"></span>
+            </div>
+            <div class="mt-5 h-3.5 w-3.5 animate-spin rounded-full border border-zinc-800 border-t-zinc-400"></div>
+        </div>
+    </div>
+
+    <section x-cloak x-show="!authLoading && !authenticated" x-transition.opacity.duration.300ms class="auth-surface fixed inset-0 z-[250] flex items-center justify-center overflow-y-auto px-4 py-8">
+        <div class="pointer-events-none absolute inset-0 overflow-hidden">
+            <div class="absolute left-1/2 top-[-260px] h-[520px] w-[760px] -translate-x-1/2 rounded-full bg-white/[0.025] blur-[100px]"></div>
+        </div>
+
+        <div class="relative w-full max-w-[390px]" data-aos="fade-up">
+            <div class="mb-7 text-center">
+                <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-[18px] border border-white/[0.075] bg-white/[0.035] shadow-[0_24px_70px_rgba(0,0,0,.55)]">
+                    <i data-lucide="message-square-more" class="h-5 w-5 text-zinc-300"></i>
+                </div>
+                <div class="flex items-center justify-center gap-2">
+                    <h1 class="text-[17px] font-semibold tracking-[-0.03em] text-zinc-100">WATon</h1>
+                    <span class="rounded-md border border-white/[0.06] bg-white/[0.03] px-1.5 py-0.5 font-mono text-[7px] uppercase tracking-wider text-zinc-600">Private</span>
+                </div>
+                <p class="mt-2 font-mono text-[8px] uppercase tracking-[0.18em] text-zinc-700">Private WhatsApp Workspace</p>
+            </div>
+
+            <div class="rounded-[25px] border border-white/[0.075] bg-[#090909]/95 p-2 shadow-[0_32px_100px_rgba(0,0,0,.65)] backdrop-blur-2xl">
+                <div class="grid grid-cols-2 gap-1 rounded-[18px] border border-white/[0.035] bg-white/[0.018] p-1">
+                    <button type="button" @click="switchAuth('login')" :class="authMode === 'login' ? 'bg-white/[0.075] text-zinc-200 shadow-sm' : 'text-zinc-650 hover:text-zinc-400'" class="h-9 rounded-[14px] text-[10px] font-medium transition">Login</button>
+                    <button type="button" @click="switchAuth('register')" :class="authMode === 'register' ? 'bg-white/[0.075] text-zinc-200 shadow-sm' : 'text-zinc-600 hover:text-zinc-400'" class="h-9 rounded-[14px] text-[10px] font-medium transition">Register</button>
+                </div>
+
+                <form @submit.prevent="submitAuth()" class="p-4 pt-5">
+                    <div class="mb-4">
+                        <label class="mb-2 block font-mono text-[8px] uppercase tracking-[0.15em] text-zinc-700">Username</label>
+                        <div class="flex h-11 items-center gap-3 rounded-xl border border-white/[0.065] bg-white/[0.022] px-3 transition focus-within:border-white/[0.14] focus-within:bg-white/[0.032]">
+                            <i data-lucide="user-round" class="h-4 w-4 shrink-0 text-zinc-700"></i>
+                            <input x-model.trim="username" type="text" autocomplete="username" maxlength="24" placeholder="anton" class="min-w-0 flex-1 bg-transparent text-[11px] text-zinc-200 outline-none placeholder:text-zinc-800">
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="mb-2 block font-mono text-[8px] uppercase tracking-[0.15em] text-zinc-700">Password</label>
+                        <div class="flex h-11 items-center gap-3 rounded-xl border border-white/[0.065] bg-white/[0.022] px-3 transition focus-within:border-white/[0.14] focus-within:bg-white/[0.032]">
+                            <i data-lucide="lock-keyhole" class="h-4 w-4 shrink-0 text-zinc-700"></i>
+                            <input x-model="password" :type="showPassword ? 'text' : 'password'" :autocomplete="authMode === 'login' ? 'current-password' : 'new-password'" placeholder="••••••••" class="min-w-0 flex-1 bg-transparent text-[11px] text-zinc-200 outline-none placeholder:text-zinc-800">
+                            <button type="button" @click="showPassword = !showPassword" class="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-700 transition hover:bg-white/[0.04] hover:text-zinc-400">
+                                <i x-show="!showPassword" data-lucide="eye" class="h-3.5 w-3.5"></i>
+                                <i x-show="showPassword" data-lucide="eye-off" class="h-3.5 w-3.5"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div x-show="authMode === 'register'" x-transition class="mb-4">
+                        <label class="mb-2 block font-mono text-[8px] uppercase tracking-[0.15em] text-zinc-700">Confirm Password</label>
+                        <div class="flex h-11 items-center gap-3 rounded-xl border border-white/[0.065] bg-white/[0.022] px-3 transition focus-within:border-white/[0.14]">
+                            <i data-lucide="shield-check" class="h-4 w-4 shrink-0 text-zinc-700"></i>
+                            <input x-model="confirmPassword" :type="showPassword ? 'text' : 'password'" autocomplete="new-password" placeholder="••••••••" class="min-w-0 flex-1 bg-transparent text-[11px] text-zinc-200 outline-none placeholder:text-zinc-800">
+                        </div>
+                    </div>
+
+                    <div x-cloak x-show="authError" x-transition class="mb-4 flex items-start gap-2 rounded-xl border border-red-500/[0.12] bg-red-500/[0.035] px-3 py-2.5 text-red-400/80">
+                        <i data-lucide="circle-alert" class="mt-px h-3.5 w-3.5 shrink-0"></i>
+                        <p class="text-[9px] leading-relaxed" x-text="authError"></p>
+                    </div>
+
+                    <button type="submit" :disabled="authBusy" class="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-zinc-100 text-[10px] font-semibold text-black transition hover:bg-white active:scale-[.985] disabled:pointer-events-none disabled:opacity-40">
+                        <div x-show="authBusy" class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-black/20 border-t-black"></div>
+                        <span x-text="authBusy ? 'Please wait...' : authMode === 'login' ? 'Continue to WATon' : 'Create account'"></span>
+                        <i x-show="!authBusy" data-lucide="arrow-right" class="h-3.5 w-3.5"></i>
+                    </button>
+
+                    <p class="mt-4 text-center font-mono text-[7px] leading-relaxed text-zinc-800" x-text="authMode === 'login' ? 'ACCESS YOUR PRIVATE SESSION' : 'CREATE A NEW PRIVATE WORKSPACE'"></p>
+                </form>
+            </div>
+
+            <div class="mt-4 flex items-center justify-center gap-2 text-zinc-800">
+                <i data-lucide="shield-check" class="h-3 w-3"></i>
+                <span class="font-mono text-[7px] uppercase tracking-[0.13em]">Authenticated server session</span>
+            </div>
+        </div>
+    </section>
+
+
+    <div id="app" x-cloak x-show="authenticated" class="app-surface relative flex h-[100dvh] w-full overflow-hidden">
+        <aside id="sidebar" class="relative z-20 flex h-full w-full shrink-0 flex-col border-r border-white/[0.065] bg-[#080808]/95 md:w-[350px] lg:w-[380px]">
+            <header class="glass hairline flex h-[68px] shrink-0 items-center justify-between border-b border-white/[0.055] px-4">
+                <div class="flex min-w-0 items-center gap-3">
+                    <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/[0.07] bg-white/[0.035] shadow-inner shadow-white/[0.025]">
+                        <i data-lucide="message-square-more" class="h-[17px] w-[17px] text-zinc-300"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-2">
+                            <h1 class="truncate text-[14px] font-semibold tracking-[-0.02em] text-zinc-100">WATon</h1>
+                            <span class="rounded-md border border-white/[0.06] bg-white/[0.035] px-1.5 py-0.5 font-mono text-[7px] uppercase tracking-wider text-zinc-600">Private</span>
+                        </div>
+                        <div class="mt-0.5 flex items-center gap-1.5">
+                            <span id="statusDot" class="h-1.5 w-1.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,.35)]"></span>
+                            <span id="statusText" class="font-mono text-[9px] text-zinc-600">Offline</span>
+                        </div>
+                    </div>
+                </div>
+                <button id="_menu" type="button" @click="settingsOpen = true" class="group flex h-9 w-9 items-center justify-center rounded-xl border border-transparent text-zinc-600 transition hover:border-white/[0.065] hover:bg-white/[0.04] hover:text-zinc-300 active:scale-95">
+                    <i data-lucide="sliders-horizontal" class="h-[17px] w-[17px] transition-transform duration-300 group-hover:rotate-6"></i>
+                </button>
+            </header>
+
+            <div id="searchWrapper" class="relative shrink-0 px-3 pb-3 pt-3">
+                <div class="group/search relative">
+                    <div class="pointer-events-none absolute -inset-px rounded-[15px] bg-gradient-to-r from-transparent via-white/[0.07] to-transparent opacity-0 blur-[1px] transition duration-300 group-focus-within/search:opacity-100"></div>
+
+                    <div class="relative flex h-[42px] items-center overflow-hidden rounded-[14px] border border-white/[0.055] bg-white/[0.022] transition-all duration-300 ease-out hover:border-white/[0.075] hover:bg-white/[0.028] group-focus-within/search:border-white/[0.12] group-focus-within/search:bg-white/[0.035] group-focus-within/search:shadow-[0_8px_30px_rgba(0,0,0,.22)]">
+                        <div class="pointer-events-none flex h-full w-10 shrink-0 items-center justify-center">
+                            <i data-lucide="search" class="h-[15px] w-[15px] text-zinc-700 transition-colors duration-300 group-focus-within/search:text-zinc-400"></i>
+                        </div>
+
+                        <input
+                            id="searchInput"
+                            type="search"
+                            autocomplete="off"
+                            spellcheck="false"
+                            placeholder="Search Contact"
+                            class="h-full min-w-0 flex-1 bg-transparent pr-2 text-[11px] font-medium text-zinc-300 outline-none placeholder:font-normal placeholder:text-zinc-700 [&::-webkit-search-cancel-button]:hidden"
+                        >
+
+                        <div id="searchShortcut" class="pointer-events-none mr-2.5 flex h-5 min-w-5 items-center justify-center rounded-md border border-white/[0.055] bg-white/[0.025] px-1.5 font-mono text-[7px] text-zinc-700 transition-all duration-200 group-focus-within/search:pointer-events-none group-focus-within/search:scale-90 group-focus-within/search:opacity-0">/</div>
+
+                        <button id="searchClear" type="button" aria-label="Clear search" class="mr-2 hidden h-7 w-7 shrink-0 items-center justify-center rounded-lg text-zinc-700 transition hover:bg-white/[0.05] hover:text-zinc-300 active:scale-90">
+                            <i data-lucide="x" class="h-3.5 w-3.5"></i>
+                        </button>
+                    </div>
+
+                    <div class="pointer-events-none absolute inset-x-6 bottom-0 h-px origin-center scale-x-0 bg-gradient-to-r from-transparent via-white/[0.1] to-transparent transition-transform duration-500 group-focus-within/search:scale-x-100"></div>
+                </div>
+
+                <div id="searchMeta" class="hidden items-center justify-between px-1 pt-2">
+                    <div class="flex min-w-0 items-center gap-1.5">
+                        <span class="h-1 w-1 shrink-0 rounded-full bg-zinc-600"></span>
+                        <span id="searchResultText" class="truncate font-mono text-[7px] uppercase tracking-[0.12em] text-zinc-700">Search results</span>
+                    </div>
+                    <span id="searchResultCount" class="font-mono text-[7px] text-zinc-800">0</span>
+                </div>
+            </div>
+
+            <div class="mx-3 mb-2 h-px shrink-0 bg-gradient-to-r from-transparent via-white/[0.055] to-transparent"></div>
+
+            <div id="chatList" class="flex-1 overflow-y-auto overscroll-contain px-2.5 pb-4">
+                <div id="emptyChats" class="flex h-full flex-col items-center justify-center px-8 text-center">
+                    <div class="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-white/[0.06] bg-white/[0.025] shadow-soft"><i data-lucide="messages-square" class="h-6 w-6 text-zinc-700"></i></div>
+                    <p class="text-[12px] font-medium text-zinc-500">No conversations</p>
+                    <p class="mt-1 max-w-[190px] text-[10px] leading-relaxed text-zinc-700">Your recent conversations will appear here.</p>
+                </div>
+            </div>
+
+            <div class="hidden h-12 shrink-0 items-center justify-between border-t border-white/[0.045] px-4 md:flex">
+                <div class="flex min-w-0 items-center gap-2 text-zinc-700">
+                    <i data-lucide="lock-keyhole" class="h-3 w-3 shrink-0"></i>
+                    <span class="truncate font-mono text-[8px] uppercase tracking-[0.15em]" x-text="username || 'Private session'"></span>
+                </div>
+                <div class="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500/50"></div>
+            </div>
+        </aside>
+
+        <!-- CHAT AREA -->
+        <main id="chatArea" class="chat-surface relative hidden h-full min-w-0 flex-1 flex-col md:flex">
+            <div class="pointer-events-none absolute inset-0 overflow-hidden"><div class="absolute left-1/2 top-[-220px] h-[420px] w-[620px] -translate-x-1/2 rounded-full bg-white/[0.012] blur-3xl"></div></div>
+
+            <section id="welcomeScreen" class="relative z-10 flex flex-1 items-center justify-center px-6 text-center">
+                <div data-aos="fade-up" data-aos-duration="600" class="max-w-sm">
+                    <div class="relative mx-auto mb-5 flex h-[68px] w-[68px] items-center justify-center rounded-[22px] border border-white/[0.07] bg-white/[0.025] shadow-panel">
+                        <div class="absolute inset-[6px] rounded-[17px] border border-white/[0.035]"></div>
+                        <i data-lucide="messages-square" class="relative h-6 w-6 text-zinc-500"></i>
+                    </div>
+                    <h2 class="text-[16px] font-semibold tracking-[-0.025em] text-zinc-200">Private messaging</h2>
+                    <p class="mx-auto mt-2 max-w-[270px] text-[11px] leading-[1.7] text-zinc-600">Choose a conversation from the sidebar to open your private workspace.</p>
+                    <div class="mt-5 inline-flex items-center gap-2 rounded-full border border-white/[0.055] bg-white/[0.02] px-3 py-1.5">
+                        <i data-lucide="shield-check" class="h-3 w-3 text-zinc-600"></i>
+                        <span class="font-mono text-[8px] tracking-wide text-zinc-700">PRIVATE SESSION</span>
+                    </div>
+                </div>
+            </section>
+
+            <section id="activeChat" class="relative z-10 hidden min-h-0 flex-1 flex-col">
+                <header class="group/header relative z-30 flex h-[58px] shrink-0 items-center gap-3 overflow-hidden border-b border-white/[0.055] bg-[#070707]/80 px-3 backdrop-blur-2xl sm:px-5">
+                    <div class="pointer-events-none absolute inset-0 bg-gradient-to-r from-white/[0.015] via-transparent to-white/[0.01]"></div>
+                    <div class="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent"></div>
+                    <div class="pointer-events-none absolute inset-x-10 bottom-0 h-px bg-gradient-to-r from-transparent via-white/[0.045] to-transparent"></div>
+
+                    <button id="backBtn" type="button" aria-label="Back" class="group/back relative z-10 flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-xl text-zinc-600 outline-none transition-all duration-300 hover:bg-white/[0.045] hover:text-zinc-300 active:scale-90 focus-visible:ring-1 focus-visible:ring-white/20 md:hidden">
+                        <span class="absolute inset-1 scale-75 rounded-lg bg-white/[0.035] opacity-0 transition-all duration-300 group-hover/back:scale-100 group-hover/back:opacity-100"></span>
+                        <i data-lucide="arrow-left" class="relative h-[17px] w-[17px] transition-transform duration-300 ease-out group-hover/back:-translate-x-0.5"></i>
+                    </button>
+
+                    <div class="group/avatar relative z-10 shrink-0">
+                        <div class="pointer-events-none absolute -inset-1 scale-90 rounded-full bg-white/[0.05] opacity-0 blur-md transition-all duration-500 group-hover/avatar:scale-100 group-hover/avatar:opacity-100"></div>
+                        <div id="headerAvatar" class="relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border border-white/[0.08] bg-zinc-900 shadow-[inset_0_0_12px_rgba(0,0,0,.7),0_4px_12px_rgba(0,0,0,.25)] transition-all duration-300 group-hover/avatar:border-white/[0.13]">
+                            <span class="text-xs font-semibold text-zinc-600">?</span>
+                        </div>
+                    </div>
+
+                    <div class="relative z-10 min-w-0 flex-1">
+                        <div class="flex min-w-0 items-center gap-2">
+                            <h2 id="headerName" class="truncate text-[13px] font-semibold tracking-[-0.015em] text-zinc-200 transition-colors duration-300 group-hover/header:text-white">—</h2>
+                        </div>
+                        <div class="mt-[2px] flex min-w-0 items-center gap-1.5">
+                            <p id="headerJid" class="truncate font-mono text-[8px] tracking-[0.02em] text-zinc-700 transition-colors duration-300 group-hover/header:text-zinc-600"></p>
+                        </div>
+                    </div>
+
+                    <div class="relative z-10 flex items-center gap-1">
+                        <button id="infoBtn" type="button" aria-label="Chat options" class="group/info relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl text-zinc-600 outline-none transition-all duration-300 hover:bg-white/[0.045] hover:text-zinc-300 active:scale-90 focus-visible:ring-1 focus-visible:ring-white/20">
+                            <span class="absolute inset-1 scale-75 rounded-lg bg-white/[0.035] opacity-0 transition-all duration-300 group-hover/info:scale-100 group-hover/info:opacity-100"></span>
+                            <i data-lucide="ellipsis" class="relative h-[18px] w-[18px] transition-transform duration-300 ease-out group-hover/info:rotate-90"></i>
+                        </button>
+                    </div>
+                </header>
+
+                <div id="syncBar" class="hidden shrink-0 border-b border-white/[0.04] bg-white/[0.012] px-5 py-2">
+                    <div class="mx-auto flex max-w-5xl items-center gap-2.5">
+                        <div class="h-3 w-3 animate-spin rounded-full border border-zinc-700 border-t-zinc-300"></div>
+                        <span id="syncText" class="font-mono text-[8px] text-zinc-600">Synchronizing...</span>
+                    </div>
+                </div>
+
+                <div id="messages" class="relative flex-1 min-h-0 overflow-y-auto overscroll-contain px-2 py-5 sm:px-5 sm:py-6">
+                    <div id="messageContainer" class="mx-auto w-full max-w-[1040px] px-1 sm:px-3"></div>
+                </div>
+
+                <div id="replyBar" class="hidden shrink-0 px-3 sm:px-6">
+                    <div class="mx-auto max-w-4xl rounded-t-2xl border-x border-t border-white/[0.065] bg-[#0b0b0b]/95 px-3 py-2.5 backdrop-blur-xl">
+                        <div class="flex items-center gap-3">
+                            <div class="h-8 w-[2px] shrink-0 rounded-full bg-zinc-300"></div>
+                            <div class="min-w-0 flex-1"><div class="font-mono text-[7px] uppercase tracking-[0.18em] text-zinc-700">Replying to</div><p id="replyText" class="mt-1 truncate text-[10px] text-zinc-400"></p></div>
+                            <button id="cancelReply" type="button" class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-zinc-700 transition hover:bg-white/[0.05] hover:text-zinc-300"><i data-lucide="x" class="h-3.5 w-3.5"></i></button>
+                        </div>
+                    </div>
+                </div>
+
+                <footer class="relative z-30 shrink-0 px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 sm:px-6 sm:pb-4">
+                    <div class="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-[#040404] via-[#040404]/95 via-60% to-transparent"></div>
+                    <div class="relative mx-auto max-w-4xl">
+                        <div class="pointer-events-none absolute -inset-[1px] rounded-[24px] bg-gradient-to-r from-transparent via-white/[0.06] to-transparent opacity-0 blur-sm transition-all duration-500 [transform:scale(.98)] group-focus-within:opacity-100"></div>
+                        <form id="messageForm" class="group relative flex items-end gap-1.5 overflow-hidden rounded-[22px] border border-white/[0.07] bg-[#0a0a0a]/85 p-1.5 shadow-[0_12px_45px_rgba(0,0,0,.45)] backdrop-blur-2xl transition-[border-color,background-color,box-shadow,transform] duration-300 ease-out focus-within:border-white/[0.14] focus-within:bg-[#0c0c0c]/95 focus-within:shadow-[0_18px_60px_rgba(0,0,0,.6),0_0_0_1px_rgba(255,255,255,.02)]">
+                            <div class="pointer-events-none absolute inset-x-5 top-0 h-px bg-gradient-to-r from-transparent via-white/[0.12] to-transparent opacity-40 transition-opacity duration-300 group-focus-within:opacity-100"></div>
+                            <button
+                                id="mediaButton"
+                                type="button"
+                                aria-label="Kirim foto atau video"
+                                class="group/attach relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-2xl text-zinc-600 outline-none transition-all duration-300 hover:bg-white/[0.05] hover:text-zinc-300 active:scale-90 focus-visible:ring-1 focus-visible:ring-white/20"
+                            >
+                                <span class="absolute inset-1 scale-75 rounded-xl bg-white/[0.04] opacity-0 transition-all duration-300 group-hover/attach:scale-100 group-hover/attach:opacity-100"></span>
+                                <i data-lucide="plus" class="relative h-[18px] w-[18px] transition-transform duration-300 ease-out group-hover/attach:rotate-90"></i>
+                            </button>
+
+                            <input id="mediaInput" type="file" accept="image/*,video/*" class="hidden">
+
+                            <div class="relative flex min-h-[40px] min-w-0 flex-1 items-center">
+                                <textarea
+                                    id="messageInput"
+                                    rows="1"
+                                    placeholder="Write a message..."
+                                    autocomplete="off"
+                                    class="peer max-h-32 min-h-[40px] w-full resize-none overflow-y-auto bg-transparent px-1.5 py-[10px] text-[14px] leading-5 text-zinc-200 outline-none transition-colors duration-200 placeholder:text-zinc-700 focus:placeholder:text-zinc-600"
+                                ></textarea>
+                                <div class="pointer-events-none absolute inset-x-4 bottom-0 h-px origin-center scale-x-0 bg-gradient-to-r from-transparent via-white/[0.12] to-transparent opacity-0 transition-all duration-500 peer-focus:scale-x-100 peer-focus:opacity-100"></div>
+                            </div>
+
+                            <button id="sendBtn" type="submit" aria-label="Send message" class="group/send relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-[16px] bg-zinc-100 text-zinc-950 shadow-[0_3px_12px_rgba(255,255,255,.08)] outline-none transition-all duration-300 ease-out hover:-translate-y-0.5 hover:bg-white hover:shadow-[0_6px_20px_rgba(255,255,255,.12)] active:translate-y-0 active:scale-[.88] focus-visible:ring-2 focus-visible:ring-white/30 disabled:pointer-events-none disabled:translate-y-0 disabled:bg-zinc-800 disabled:text-zinc-600 disabled:shadow-none">
+                                <span class="absolute inset-0 translate-y-full bg-gradient-to-t from-zinc-200 to-white transition-transform duration-300 ease-out group-hover/send:translate-y-0"></span>
+                                <span class="absolute inset-1 scale-50 rounded-xl bg-white opacity-0 blur-md transition-all duration-300 group-hover/send:scale-100 group-hover/send:opacity-30"></span>
+                                <i data-lucide="arrow-up" class="relative z-10 h-[17px] w-[17px] transition-transform duration-300 ease-out group-hover/send:-translate-y-0.5 group-active/send:translate-y-0"></i>
+                            </button>
+                        </form>
+
+                        <div class="relative mt-2 hidden h-3 items-center justify-center overflow-hidden md:flex">
+                            <span class="translate-y-0 font-mono text-[7px] tracking-[0.14em] text-zinc-800 transition-all duration-300 group-focus-within:text-zinc-700">
+                                ENTER TO SEND
+                                <span class="mx-1.5 text-zinc-900">·</span>
+                                SHIFT + ENTER FOR NEW LINE
+                            </span>
+                        </div>
+                    </div>
+                </footer>
+            </section>
+        </main>
+
+        <!-- CONNECT WHATSAPP -->
+        <div x-cloak x-show="authenticated && !whatsappRegistered" x-transition.opacity class="absolute inset-0 z-[80] flex items-center justify-center bg-black/65 p-4 backdrop-blur-md">
+            <div class="w-full max-w-[410px] rounded-[26px] border border-white/[0.075] bg-[#090909]/95 p-2 shadow-[0_35px_120px_rgba(0,0,0,.75)]">
+                <div class="p-5">
+                    <div class="mb-5 flex items-start justify-between">
+                        <div class="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/[0.065] bg-white/[0.03]"><i data-lucide="smartphone" class="h-[18px] w-[18px] text-zinc-400"></i></div>
+                        <span class="rounded-md border border-amber-500/[0.1] bg-amber-500/[0.035] px-2 py-1 font-mono text-[7px] uppercase tracking-[0.14em] text-amber-400/60">Not connected</span>
+                    </div>
+
+                    <h2 class="text-[15px] font-semibold tracking-[-0.02em] text-zinc-200">Connect WhatsApp</h2>
+                    <p class="mt-1.5 text-[10px] leading-[1.65] text-zinc-600">Link your WhatsApp account to this WATon workspace using a pairing code or QR code.</p>
+
+                    <div class="mt-5 grid grid-cols-2 gap-1 rounded-[15px] border border-white/[0.04] bg-white/[0.018] p-1">
+                        <button type="button" @click="pairingMethod = 'code'; pairingCode = ''; pairingQr = ''; pairingMessage = ''" :class="pairingMethod === 'code' ? 'bg-white/[0.075] text-zinc-200' : 'text-zinc-600'" class="h-9 rounded-[11px] text-[9px] font-medium transition">Pairing Code</button>
+                        <button type="button" @click="pairingMethod = 'qr'; pairingCode = ''; pairingQr = ''; pairingMessage = ''" :class="pairingMethod === 'qr' ? 'bg-white/[0.075] text-zinc-200' : 'text-zinc-600'" class="h-9 rounded-[11px] text-[9px] font-medium transition">QR Code</button>
+                    </div>
+
+                    <div x-show="pairingMethod === 'code'" class="mt-4">
+                        <label class="mb-2 block font-mono text-[8px] uppercase tracking-[0.15em] text-zinc-700">WhatsApp Number</label>
+                        <div class="flex h-11 items-center gap-3 rounded-xl border border-white/[0.065] bg-white/[0.022] px-3 transition focus-within:border-white/[0.14]">
+                            <span class="font-mono text-[9px] text-zinc-700">+</span>
+                            <input x-model="phone" type="tel" inputmode="numeric" autocomplete="tel" placeholder="628123456789" class="min-w-0 flex-1 bg-transparent font-mono text-[10px] text-zinc-300 outline-none placeholder:text-zinc-800">
+                        </div>
+                        <p class="mt-2 font-mono text-[7px] leading-relaxed text-zinc-800">Gunakan kode negara. Contoh Indonesia: 62812...</p>
+
+                        <button type="button" @click="startWhatsApp('code')" :disabled="pairingBusy" class="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-zinc-100 text-[10px] font-semibold text-black transition hover:bg-white active:scale-[.985] disabled:pointer-events-none disabled:opacity-40">
+                            <div x-show="pairingBusy" class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-black/20 border-t-black"></div>
+                            <span x-text="pairingBusy ? 'Generating...' : 'Generate Pairing Code'"></span>
+                        </button>
+
+                        <div x-cloak x-show="pairingCode" x-transition class="mt-4 rounded-2xl border border-white/[0.065] bg-white/[0.025] p-4 text-center">
+                            <p class="font-mono text-[7px] uppercase tracking-[0.16em] text-zinc-700">Your Pairing Code</p>
+                            <p class="mt-2 font-mono text-[21px] font-semibold tracking-[0.15em] text-zinc-200" x-text="pairingCode"></p>
+                            <p class="mt-2 text-[8px] leading-relaxed text-zinc-700">Open WhatsApp → Linked devices → Link with phone number.</p>
+                        </div>
+                    </div>
+
+                    <div x-show="pairingMethod === 'qr'" class="mt-4">
+                        <button type="button" @click="startWhatsApp('qr')" :disabled="pairingBusy" class="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-zinc-100 text-[10px] font-semibold text-black transition hover:bg-white active:scale-[.985] disabled:pointer-events-none disabled:opacity-40">
+                            <div x-show="pairingBusy" class="h-3.5 w-3.5 animate-spin rounded-full border-2 border-black/20 border-t-black"></div>
+                            <span x-text="pairingBusy ? 'Preparing QR...' : 'Generate QR Code'"></span>
+                        </button>
+
+                        <div x-cloak x-show="pairingQr" x-transition class="mt-4 rounded-2xl border border-white/[0.065] bg-white/[0.025] p-4">
+                            <div class="mx-auto w-fit rounded-2xl bg-white p-3"><img :src="pairingQr" alt="WhatsApp QR Code" class="h-[220px] w-[220px] rounded-lg object-contain"></div>
+                            <p class="mt-3 text-center text-[8px] text-zinc-700">Scan using WhatsApp → Linked devices → Link a device.</p>
+                        </div>
+                    </div>
+
+                    <div x-cloak x-show="pairingMessage" class="mt-4 flex items-start gap-2 rounded-xl border border-red-500/[0.1] bg-red-500/[0.03] px-3 py-2.5 text-red-400/70">
+                        <i data-lucide="circle-alert" class="mt-px h-3.5 w-3.5 shrink-0"></i>
+                        <p class="text-[9px] leading-relaxed" x-text="pairingMessage"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SETTINGS BACKDROP -->
+    <div x-cloak x-show="authenticated && settingsOpen" x-transition.opacity.duration.300ms @click="settingsOpen=false" class="fixed inset-0 z-40 bg-black/55 backdrop-blur-[3px]"></div>
+
+    <!-- SETTINGS -->
+    <aside id="_menu_sidebar" x-cloak x-show="authenticated && settingsOpen"
+        x-transition:enter="transition duration-400 ease-[cubic-bezier(.22,1,.36,1)]"
+        x-transition:enter-start="translate-x-full opacity-0"
+        x-transition:enter-end="translate-x-0 opacity-100"
+        x-transition:leave="transition duration-300 ease-in"
+        x-transition:leave-start="translate-x-0 opacity-100"
+        x-transition:leave-end="translate-x-full opacity-0"
+        class="fixed inset-y-0 right-0 z-50 flex w-full max-w-[390px] flex-col border-l border-white/[0.07] bg-[#080808]/95 shadow-[-30px_0_100px_rgba(0,0,0,.5)] backdrop-blur-2xl">
+
+        <header class="glass flex h-[68px] shrink-0 items-center justify-between border-b border-white/[0.055] px-4">
+            <div class="flex items-center gap-3">
+                <div class="flex h-9 w-9 items-center justify-center rounded-xl border border-white/[0.065] bg-white/[0.03]"><i data-lucide="settings-2" class="h-4 w-4 text-zinc-400"></i></div>
+                <div><h2 class="text-[12px] font-semibold text-zinc-200">Control Panel</h2><p class="mt-0.5 font-mono text-[8px] text-zinc-700">Session configuration</p></div>
+            </div>
+            <button id="_close_menu" type="button" @click="settingsOpen = false" class="group flex h-9 w-9 items-center justify-center rounded-xl text-zinc-600 transition hover:bg-white/[0.045] hover:text-zinc-300 active:scale-95"><i data-lucide="x" class="h-4 w-4 transition-transform duration-300 group-hover:rotate-90"></i></button>
+        </header>
+
+        <div class="custom-scroll flex-1 overflow-y-auto px-3.5 py-5">
+            <section>
+                <div class="mb-2.5 flex items-center justify-between px-1"><span class="font-mono text-[8px] uppercase tracking-[0.2em] text-zinc-700">Automation</span><span class="font-mono text-[8px] text-zinc-800">02</span></div>
+
+                <div class="overflow-hidden rounded-2xl border border-white/[0.055] bg-white/[0.016]">
+                    <div class="group flex items-center gap-3 border-b border-white/[0.045] px-3 py-3 transition hover:bg-white/[0.025]">
+                        <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/[0.055] bg-white/[0.025] text-zinc-600 transition group-hover:text-zinc-400">
+                            <i data-lucide="check-check" class="h-4 w-4"></i>
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <p class="text-[11px] font-medium text-zinc-300">Auto Read</p>
+                            <p class="mt-0.5 truncate font-mono text-[8px] text-zinc-700">Mark incoming messages as read</p>
+                        </div>
+                        <button
+                            class="feature-toggle relative h-5 w-9 shrink-0 rounded-full border border-white/[0.08] bg-white/[0.065] transition duration-300 active:scale-95"
+                            data-feature="auto_read"
+                            type="button"
+                            role="switch"
+                            aria-checked="false"
+                        >
+                            <span class="absolute left-[3px] top-[3px] h-3.5 w-3.5 rounded-full bg-zinc-500 shadow transition-all duration-300 ease-[cubic-bezier(.22,1,.36,1)]"></span>
+                        </button>
+                    </div>
+
+
+                    <div class="group flex items-center gap-3 px-3 py-3 transition hover:bg-white/[0.025]">
+                        <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/[0.055] bg-white/[0.025] text-zinc-600 transition group-hover:text-zinc-400">
+                            <i data-lucide="keyboard" class="h-4 w-4"></i>
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <p class="text-[11px] font-medium text-zinc-300">Auto Typing</p>
+                            <p class="mt-0.5 truncate font-mono text-[8px] text-zinc-700">Automatically show typing presence</p>
+                        </div>
+                        <button
+                            class="feature-toggle relative h-5 w-9 shrink-0 rounded-full border border-white/[0.08] bg-white/[0.065] transition duration-300 active:scale-95"
+                            data-feature="auto_typing"
+                            type="button"
+                            role="switch"
+                            aria-checked="false"
+                        >
+                            <span class="absolute left-[3px] top-[3px] h-3.5 w-3.5 rounded-full bg-zinc-500 shadow transition-all duration-300 ease-[cubic-bezier(.22,1,.36,1)]"></span>
+                        </button>
+                    </div>
+
+
+                    <div class="group flex items-center gap-3 border-b border-white/[0.045] px-3 py-3 transition hover:bg-white/[0.025]">
+                        <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/[0.055] bg-white/[0.025] text-zinc-600 transition group-hover:text-zinc-400">
+                            <i data-lucide="ghost" class="h-4 w-4"></i>
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <p class="text-[11px] font-medium text-zinc-300">Ghost Mode</p>
+                            <p class="mt-0.5 truncate font-mono text-[8px] text-zinc-700">anonymous conversation</p></div>
+                        <button
+                            class="feature-toggle relative h-5 w-9 shrink-0 rounded-full border border-white/[0.08] bg-white/[0.065] transition duration-300 active:scale-95"
+                            data-feature="ghost_mode"
+                            type="button"
+                            role="switch"
+                            aria-checked="false"
+                        >
+                            <span class="absolute left-[3px] top-[3px] h-3.5 w-3.5 rounded-full bg-zinc-500 shadow transition-all duration-300 ease-[cubic-bezier(.22,1,.36,1)]"></span>
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <section class="mt-7">
+                <div class="mb-2.5 px-1"><span class="font-mono text-[8px] uppercase tracking-[0.2em] text-zinc-700">Account</span></div>
+                <div class="rounded-2xl border border-white/[0.055] bg-white/[0.016] p-2">
+                    <div class="flex items-center gap-3 rounded-xl px-2.5 py-2.5">
+                        <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/[0.065] bg-white/[0.035]"><i data-lucide="user-round" class="h-4 w-4 text-zinc-600"></i></div>
+                        <div class="min-w-0 flex-1"><p class="truncate text-[10px] font-medium text-zinc-400" x-text="username || '—'"></p><p class="mt-0.5 font-mono text-[8px] text-zinc-700">Authenticated session</p></div>
+                        <span class="h-1.5 w-1.5 rounded-full bg-emerald-500/80 shadow-[0_0_7px_rgba(34,197,94,.35)]"></span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="mt-7">
+                <div class="mb-2.5 px-1"><span class="font-mono text-[8px] uppercase tracking-[0.2em] text-zinc-700">Danger zone</span></div>
+
+                <button id="_logout" type="button" @click="logout()" class="group flex w-full items-center gap-3 rounded-2xl border border-red-500/[0.09] bg-red-500/[0.025] px-3 py-3 text-left transition hover:border-red-500/[0.14] hover:bg-red-500/[0.045] active:scale-[.99]">
+                    <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-red-500/[0.08] bg-red-500/[0.04]"><i data-lucide="log-out" class="h-4 w-4 text-red-400/60 transition group-hover:text-red-400"></i></div>
+                    <div class="min-w-0 flex-1"><p class="text-[11px] font-medium text-red-400/75">Logout WATon</p><p class="mt-0.5 font-mono text-[8px] text-zinc-700">Sign out from this web session</p></div>
+                    <i data-lucide="chevron-right" class="h-3.5 w-3.5 text-zinc-800 transition group-hover:translate-x-0.5 group-hover:text-red-400/50"></i>
+                </button>
+            </section>
+        </div>
+
+        <footer class="shrink-0 border-t border-white/[0.045] px-4 py-3">
+            <div class="flex items-center justify-between"><span class="font-mono text-[7px] uppercase tracking-[0.18em] text-zinc-800">WATon Interface</span><span class="font-mono text-[7px] text-zinc-800">v1.0</span></div>
+        </footer>
+    </aside>
+
+    <div id="deleteChatModal" class="fixed inset-0 z-[180] hidden items-center justify-center bg-black/70 p-4 backdrop-blur-md">
+        <div class="w-full max-w-[350px] rounded-[24px] border border-white/[0.075] bg-[#0a0a0a] p-5 shadow-[0_32px_100px_rgba(0,0,0,.7)]">
+            <div class="flex h-11 w-11 items-center justify-center rounded-2xl border border-red-500/[0.1] bg-red-500/[0.04]"><i data-lucide="trash-2" class="h-[18px] w-[18px] text-red-400/70"></i></div>
+            <h3 class="mt-5 text-[13px] font-semibold text-zinc-200">Hapus chat?</h3>
+            <p class="mt-1.5 text-[10px] leading-[1.6] text-zinc-600">Anda yakin ingin menghapus chat dengan <span id="deleteChatName" class="font-medium text-zinc-400"></span>? Chat akan dihapus dari database WATon.</p>
+            <div class="mt-5 flex gap-2">
+                <button id="cancelDeleteChat" type="button" class="h-10 flex-1 rounded-xl border border-white/[0.065] bg-white/[0.025] text-[10px] font-medium text-zinc-500 transition hover:bg-white/[0.045] hover:text-zinc-300">Batal</button>
+                <button id="confirmDeleteChat" type="button" class="flex h-10 flex-1 items-center justify-center gap-2 rounded-xl border border-red-500/[0.12] bg-red-500/[0.08] text-[10px] font-medium text-red-400 transition hover:bg-red-500/[0.14] active:scale-[.98]"><i data-lucide="trash-2" class="h-3.5 w-3.5"></i>Hapus</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST -->
+    <div id="toastContainer" class="pointer-events-none fixed bottom-4 right-4 z-[150] flex flex-col gap-2"></div>
+
+    <!-- SYNC MODAL -->
+    <div id="syncModal" class="fixed inset-0 z-[90] hidden items-center justify-center bg-black/70 p-5 backdrop-blur-md">
+        <div data-aos="zoom-in" class="w-full max-w-[350px] rounded-[24px] border border-white/[0.075] bg-[#0a0a0a] p-5 shadow-[0_32px_100px_rgba(0,0,0,.65)]">
+            <div class="mb-5 flex items-start justify-between">
+                <div class="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/[0.065] bg-white/[0.03]"><i data-lucide="refresh-cw" class="h-[18px] w-[18px] animate-spin text-zinc-400"></i></div>
+                <span class="rounded-md border border-white/[0.05] bg-white/[0.025] px-2 py-1 font-mono text-[7px] uppercase tracking-[0.14em] text-zinc-700">Sync</span>
+            </div>
+            <h3 class="text-[13px] font-semibold tracking-tight text-zinc-200">Synchronizing WhatsApp</h3>
+            <p id="modalSyncText" class="mt-1.5 text-[10px] leading-relaxed text-zinc-600">Preparing synchronization...</p>
+            <div class="mt-5 h-[3px] overflow-hidden rounded-full bg-white/[0.055]"><div id="syncProgress" class="h-full w-0 rounded-full bg-zinc-200 transition-all duration-300"></div></div>
+            <div class="mt-2.5 flex justify-between font-mono text-[8px] text-zinc-700"><span id="syncProcessed">0</span><span id="syncTotal">0</span></div>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/aos@2.3.4/dist/aos.js"></script>
+    <script src="./script.js"></script>
+    <script>lucide.createIcons();</script>
+</body>
+</html>
