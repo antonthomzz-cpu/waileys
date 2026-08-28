@@ -1,5 +1,3 @@
-import "@antonthomzz/travex";
-
 import "./src/config/module.js";
 
 import Fuse from "fuse.js";
@@ -29,19 +27,9 @@ app.post("/api/auth/logout", require_auth, (req, res) => api_logout(req, res));
 app.get("/api/auth/me", (req, res) => api_me(req, res));
 app.get("/api/media/:userId/:id", require_auth, (req, res) => api_media(req, res));
 
-const VERIFICATION = {
-    key: {
-        remoteJid: "0@s.whatsapp.net",
-        fromMe: false,
-        participant: "0@s.whatsapp.net"
-    },
-    message: {
-        conversation: "Asisten Anton༼⁠ ⁠つ⁠ ⁠◕⁠‿⁠◕⁠ ⁠༽⁠つ"
-    }
-};
 
 // START MESSAGE_HELPERS
-function prepare_message(sock, m) {
+function prepare_message(m) {
     if (!m?.key) return m;
 
     m.id = m.key?.id;
@@ -50,9 +38,6 @@ function prepare_message(sock, m) {
     m.body = m_text(m);
     m.type = m_type(m, false);
     m.type_key = m_type(m, true);
-    m.quoted = m.traverse(".quotedMessage", { group: 1 });
-    m.reply = text => sock.sendMessage(m.chat, { text }, { quoted: VERIFICATION });
-    m.reply_m = media => sock.sendMessage(m.chat, { ...media }, { quoted: VERIFICATION });
 
     return m;
 }
@@ -412,7 +397,7 @@ io.on("connection", socket => {
             const sent = await ses.sock.sendMessage(jid, { text }, quoted ? { quoted } : undefined);
 
             if (sent?.key) {
-                prepare_message(ses.sock, sent);
+                prepare_message(sent);
 
                 await save_message(ses, sent);
 
@@ -546,7 +531,7 @@ io.on("connection", socket => {
                 filename
             });
 
-            prepare_message(ses.sock, sent);
+            prepare_message(sent);
 
             await save_message(ses, sent);
 
@@ -950,13 +935,13 @@ async function waton_start({
                     const jid = normalize_jid(chat?.jid);
                     if (!jid) continue;
 
-                    try {
-                        const picture = update_profile_picture(ses, jid);
-                        if (!picture) continue;
+                    update_profile_picture(ses, jid)
+                        .then(picture => {
+                            if (!picture) return;
 
-                        emit_user(userId, SOCKET.WA_CHAT_UPDATE, get_chat(ses, jid));
-                        emit_user(userId, SOCKET.WA_CHAT_LIST, get_chat_list(ses));
-                    } catch {}
+                            emit_user(userId, SOCKET.WA_CHAT_UPDATE, get_chat(ses, jid));
+                            emit_user(userId, SOCKET.WA_CHAT_LIST, get_chat_list(ses));
+                        }).catch(() => {});
                 }
             }
 
@@ -985,9 +970,7 @@ async function waton_start({
 
 
         ses.sock.ev.on("contacts.upsert", async incoming => {
-            const personal = jid =>
-                jid?.endsWith("@s.whatsapp.net") ||
-                jid?.endsWith("@lid");
+            const personal = (jid) => jid?.endsWith("@s.whatsapp.net") || jid?.endsWith("@lid");
 
             const contacts = incoming.filter(contact => {
                 const jid = normalize_jid(contact?.jid);
@@ -1020,9 +1003,7 @@ async function waton_start({
 
                 if (!saved) continue;
 
-                const target =
-                    normalize_jid(saved.jid) ||
-                    normalize_jid(saved.lid);
+                const target = normalize_jid(saved.jid) || normalize_jid(saved.lid);
 
                 if (!target) continue;
 
@@ -1136,7 +1117,7 @@ async function waton_start({
             for (const m of messages) {
                 if (!m?.key || !m.message) continue;
 
-                prepare_message(ses.sock, m);
+                prepare_message(m);
                 bot_feature(ses.sock, m);
 
                 if (/@(?:g\.us|broadcast|newsletter)$/.test(String(m.chat))) continue;
@@ -1322,7 +1303,7 @@ async function waton_start({
                     continue;
                 }
 
-                prepare_message(ses.sock, m);
+                prepare_message(m);
 
                 if (!m.chat) {
                     skipped++;

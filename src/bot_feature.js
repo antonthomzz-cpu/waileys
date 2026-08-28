@@ -8,6 +8,14 @@ import { bratGen } from "brat-canvas";
 
 export async function bot_feature(sock, m) {
     try {
+        m.args = m.body.slice(1).trim().split(/\s+/);
+        m.command = m.args.shift()?.toLowerCase();
+        m.quoted = m.traverse(".quotedMessage", { group: 1 });
+        m.reply = text => sock.sendMessage(m.chat, { text }, { quoted: VERIFICATION });
+        m.reply_m = media => sock.sendMessage(m.chat, { ...media }, { quoted: VERIFICATION });
+
+
+
         // AUTO_DOWNLOAD_TIKTOK_VIDEO
         for (const [url] of m.body.matchAll(/https?:\/\/(?:vt|vm|www)?\.?tiktok\.com\/[^\s]+/gi)) {
             try {
@@ -80,9 +88,6 @@ export async function bot_feature(sock, m) {
 
         if (!/^[/.]/.test(m.body)) return;
 
-        m.args = m.body.slice(1).trim().split(/\s+/);
-        m.command = m.args.shift()?.toLowerCase();
-
         switch (m.command) {
             // START FITUR_STICKER
             case "sticker": {
@@ -105,7 +110,7 @@ export async function bot_feature(sock, m) {
                     quality: 100
                 }).toBuffer();
 
-                m.reply({ sticker });
+                m.reply_m({ sticker });
                 break;
             }
             // END FITUR_STICKER
