@@ -13,47 +13,70 @@ const VERIFICATION = {
         participant: "0@s.whatsapp.net"
     },
     message: {
-        conversation: "Asisten WATon༼⁠ ⁠つ⁠ ⁠◕⁠‿⁠◕⁠ ⁠༽⁠つ"
+        conversation: "༼⁠ ⁠つ⁠ ⁠◕⁠‿⁠◕⁠ ⁠༽⁠つ WATon - Asisten anda"
     }
 };
 
 
 export async function bot_feature(sock, m) {
     try {
-        m.args = m.body.slice(1).trim().split(/\s+/);
-        m.command = m.args.shift()?.toLowerCase();
+        m.args = m.body
+            .slice(1)
+            .trim()
+            .split(/\s+/);
+
+        m.command = m.args
+            .shift()?
+            .toLowerCase();
+
+        // GET_QUOTED_MESSAGE
         m.quoted = m.traverse(".quotedMessage", { group: 1 });
-        m.reply = text => sock.sendMessage(m.chat, { text }, { quoted: VERIFICATION });
-        m.reply_m = media => sock.sendMessage(m.chat, { ...media }, { quoted: VERIFICATION });
+
+        // REPLY_TEXT
+        m.reply = text => sock.sendMessage(m.chat,
+            { text },
+            { quoted: VERIFICATION }
+        );
+
+        // REPLY_MEDIA
+        m.reply_m = async (media) => await sock.sendMessage(m.chat,
+            { ...media },
+            { quoted: VERIFICATION }
+        );
 
 
         // AUTO_DOWNLOAD_TIKTOK_VIDEO
         for (const [url] of m.body.matchAll(/https?:\/\/(?:vt|vm|www)?\.?tiktok\.com\/[^\s]+/gi)) {
             try {
-                const { body } = await got.post("https://www.tikwm.com/api/", {
-                    form: { url, hd: 1 },
-                    responseType: "json"
-                });
+                const { data } = await got.post("https://www.tikwm.com/api/", {
+                    form: {
+                        url,
+                        hd: 1
+                    }
+                }).json();
 
-                const data = body?.data;
-
-                if (data.images.length) {
-                    for (const media_url of data.images) {
-                        m.reply_m({
+                if (Array.isArray(data?.images) && data.images.length) {
+                    for (const image of data.images) {
+                        await m.reply_m({
                             image: {
-                                url: media_url
+                                url: image
                             }
                         });
                     }
-                } else if (data.hdplay || data.play) {
-                    m.reply_m({
+                    continue;
+                }
+
+                const video = data?.hdplay || data?.play;
+
+                if (video) {
+                    await m.reply_m({
                         video: {
-                            url: data.hdplay || data.play
+                            url: video
                         }
                     });
                 }
             } catch {
-                m.reply("gagal download vidio tiktok");
+                m.reply("gagal download TikTok");
             }
         }
 
@@ -86,7 +109,7 @@ export async function bot_feature(sock, m) {
                 const video_url = search_url_data[["browser_native_hd_url", "browser_native_sd_url"].find(key => search_url_data[key])];
 
                 if (video_url) {
-                    m.reply_m({
+                    await m.reply_m({
                         video: {
                             url: video_url
                         }
@@ -101,7 +124,7 @@ export async function bot_feature(sock, m) {
 
         switch (m.command) {
             // START FITUR_STICKER
-            case "sticker": {
+            case "s": case "sticker": {
                 const media =
                     m.quoted?.imageMessage ||
                     m.quoted?.videoMessage ||
@@ -121,7 +144,7 @@ export async function bot_feature(sock, m) {
                     quality: 100
                 }).toBuffer();
 
-                m.reply_m({ sticker });
+                await m.reply_m({ sticker });
                 break;
             }
             // END FITUR_STICKER
@@ -147,7 +170,7 @@ export async function bot_feature(sock, m) {
                     quality: 100
                 }).toBuffer();
 
-                m.reply_m({ sticker });
+                await m.reply_m({ sticker });
                 break;
             }
             // END FITUR_BRAT
@@ -162,7 +185,7 @@ export async function bot_feature(sock, m) {
                 const media = m.quoted[m.type_key];
                 const buffer = await download_media(media, m.type);
 
-                m.reply_m({
+                await m.reply_m({
                     [m.type]: buffer,
                     mimetype: media.mimetype,
                     caption: media.caption || undefined
