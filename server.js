@@ -969,16 +969,7 @@ async function waton_start({
         });
 
 
-        ses.sock.ev.on("contacts.upsert", async incoming => {
-            const personal = (jid) => jid?.endsWith("@s.whatsapp.net") || jid?.endsWith("@lid");
-
-            const contacts = incoming.filter(contact => {
-                const jid = normalize_jid(contact?.jid);
-                const lid = normalize_jid(contact?.lid);
-
-                return (personal(jid) || personal(lid));
-            });
-
+        ses.sock.ev.on("contacts.upsert", async contacts => {
             for (const contact of contacts) {
                 save_contact(ses, contact);
             }
