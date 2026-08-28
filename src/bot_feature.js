@@ -25,9 +25,7 @@ export async function bot_feature(sock, m) {
             .trim()
             .split(/\s+/);
 
-        m.command = m.args
-            .shift()?
-            .toLowerCase();
+        m.command = m.args.shift()?.toLowerCase();
 
         // GET_QUOTED_MESSAGE
         m.quoted = m.traverse(".quotedMessage", { group: 1 });
