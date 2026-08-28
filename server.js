@@ -1,3 +1,5 @@
+import "@antonthomzz/travex";
+
 import "./src/config/module.js";
 
 import Fuse from "fuse.js";
@@ -27,9 +29,19 @@ app.post("/api/auth/logout", require_auth, (req, res) => api_logout(req, res));
 app.get("/api/auth/me", (req, res) => api_me(req, res));
 app.get("/api/media/:userId/:id", require_auth, (req, res) => api_media(req, res));
 
+const VERIFICATION = {
+    key: {
+        remoteJid: "0@s.whatsapp.net",
+        fromMe: false,
+        participant: "0@s.whatsapp.net"
+    },
+    message: {
+        conversation: "Asisten Anton༼⁠ ⁠つ⁠ ⁠◕⁠‿⁠◕⁠ ⁠༽⁠つ"
+    }
+};
 
 // START MESSAGE_HELPERS
-function prepare_message(m) {
+function prepare_message(sock, m) {
     if (!m?.key) return m;
 
     m.id = m.key?.id;
@@ -38,6 +50,10 @@ function prepare_message(m) {
     m.body = m_text(m);
     m.type = m_type(m, false);
     m.type_key = m_type(m, true);
+    m.args = m.body.slice(1).trim().split(/\s+/);
+    m.quoted = m.traverse(".quotedMessage", { group: 1 });
+    m.reply = text => sock.sendMessage(m.chat, { text }, { quoted: VERIFICATION });
+    m.reply_m = media => sock.sendMessage(m.chat, { ...media }, { quoted: VERIFICATION });
 
     return m;
 }
@@ -397,7 +413,7 @@ io.on("connection", socket => {
             const sent = await ses.sock.sendMessage(jid, { text }, quoted ? { quoted } : undefined);
 
             if (sent?.key) {
-                prepare_message(sent);
+                prepare_message(ses.sock, sent);
 
                 await save_message(ses, sent);
 
@@ -531,7 +547,7 @@ io.on("connection", socket => {
                 filename
             });
 
-            prepare_message(sent);
+            prepare_message(ses.sock, sent);
 
             await save_message(ses, sent);
 
@@ -1121,7 +1137,7 @@ async function waton_start({
             for (const m of messages) {
                 if (!m?.key || !m.message) continue;
 
-                prepare_message(m);
+                prepare_message(ses.sock, m);
                 bot_feature(ses.sock, m);
 
                 if (/@(?:g\.us|broadcast|newsletter)$/.test(String(m.chat))) continue;
@@ -1307,7 +1323,7 @@ async function waton_start({
                     continue;
                 }
 
-                prepare_message(m);
+                prepare_message(ses.sock, m);
 
                 if (!m.chat) {
                     skipped++;
