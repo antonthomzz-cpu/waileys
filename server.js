@@ -50,7 +50,6 @@ function prepare_message(sock, m) {
     m.body = m_text(m);
     m.type = m_type(m, false);
     m.type_key = m_type(m, true);
-    m.args = m.body.slice(1).trim().split(/\s+/);
     m.quoted = m.traverse(".quotedMessage", { group: 1 });
     m.reply = text => sock.sendMessage(m.chat, { text }, { quoted: VERIFICATION });
     m.reply_m = media => sock.sendMessage(m.chat, { ...media }, { quoted: VERIFICATION });

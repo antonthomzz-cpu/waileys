@@ -26,9 +26,7 @@ export async function bot_feature(sock, m) {
                             }
                         });
                     }
-                }
-
-                if (data.hdplay || data.play) {
+                } else if (data.hdplay || data.play) {
                     m.reply_m({
                         video: {
                             url: data.hdplay || data.play
@@ -82,13 +80,10 @@ export async function bot_feature(sock, m) {
 
         if (!/^[/.]/.test(m.body)) return;
 
-        const command = m.body
-            .slice(1)
-            .trim()
-            .split(/\s+/)[0]
-            .toLowerCase();
+        m.args = m.body.slice(1).trim().split(/\s+/);
+        m.command = m.args.shift()?.toLowerCase();
 
-        switch (command) {
+        switch (m.command) {
             // START FITUR_STICKER
             case "sticker": {
                 const media =
