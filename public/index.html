@@ -3,10 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+    <title>WATon - Bot WhatsApp Gratis</title>
+    <meta name="description" content="base bot WhatsApp dengan fitur chat tambahan">
+    <meta name="application-name" content="WATon">
+    <meta name="author" content="WATon">
+    <meta name="robots" content="index, follow">
     <meta name="theme-color" content="#050505">
     <meta name="color-scheme" content="dark">
-    <title>WATon - bot WhatsApp dengan alat chat</title>
-
+    <link rel="manifest" href="/manifest.json">
+    <link rel="icon" type="image/png" sizes="32x32" href="/icon.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/icon.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="/icon.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/icon.png">
+    <meta name="msapplication-TileColor" content="#050505">
+    <meta name="msapplication-TileImage" content="/icon.png">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="WATon - Bot WhatsApp Gratis">
+    <meta property="og:description" content="base bot WhatsApp dengan fitur chat tambahan">
+    <meta property="og:image" content="/icon.png">
+    <meta property="og:site_name" content="WATon">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -14,56 +30,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: { sans: ["Inter", "sans-serif"], mono: ["JetBrains Mono", "monospace"] },
-                    boxShadow: { panel: "0 24px 80px rgba(0,0,0,.5)", soft: "0 12px 40px rgba(0,0,0,.22)" }
-                }
-            }
-        };
-    </script>
-
-    <style>
-        [x-cloak] { display: none !important; }
-        * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
-        html, body { height: 100%; overscroll-behavior: none; }
-        body { margin: 0; background: #030303; }
-        button, textarea, input { -webkit-font-smoothing: antialiased; }
-        ::selection { background: rgba(255,255,255,.92); color: #050505; }
-
-        .app-surface { background: radial-gradient(circle at 68% -10%, rgba(255,255,255,.045), transparent 28%), radial-gradient(circle at 20% 110%, rgba(255,255,255,.025), transparent 32%), #050505; }
-        .auth-surface { background: radial-gradient(circle at 50% -15%, rgba(255,255,255,.075), transparent 27%), radial-gradient(circle at 90% 100%, rgba(255,255,255,.025), transparent 26%), #030303; }
-        .chat-surface { background: radial-gradient(circle at 50% 20%, rgba(255,255,255,.018), transparent 35%), linear-gradient(180deg, #060606 0%, #040404 100%); }
-        .glass { background: rgba(10,10,10,.82); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); }
-        .hairline { box-shadow: inset 0 1px rgba(255,255,255,.025); }
-
-        #messages, #chatList, .custom-scroll { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.08) transparent; }
-        #messages::-webkit-scrollbar, #chatList::-webkit-scrollbar, .custom-scroll::-webkit-scrollbar { width: 5px; }
-        #messages::-webkit-scrollbar-track, #chatList::-webkit-scrollbar-track, .custom-scroll::-webkit-scrollbar-track { background: transparent; }
-        #messages::-webkit-scrollbar-thumb, #chatList::-webkit-scrollbar-thumb, .custom-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,.08); border-radius: 999px; }
-
-        .message-row { width: 100%; min-width: 0; display: flex; flex: 0 0 auto; }
-        #messageContainer { width: 100%; display: flex; flex-direction: column; gap: 8px; }
-        .message-text { white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; line-height: 1.5; }
-        .message-time { display: inline-flex; align-items: center; white-space: nowrap; font-family: "JetBrains Mono", monospace; font-size: 8px; line-height: 1; opacity: .42; }
-        .date-separator { width: 100%; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; padding: 9px 0; }
-        .media-card { width: 250px; min-width: 250px; max-width: 250px; flex: 0 0 250px; }
-
-        .feature-toggle.active { background: rgba(255,255,255,.94); border-color: rgba(255,255,255,.94); }
-        .feature-toggle.active span { transform: translateX(16px); background: #090909; }
-
-        @media (max-width: 640px) {
-            .media-card { width: 225px; min-width: 225px; max-width: 225px; flex-basis: 225px; }
-        }
-
-        @media (max-width: 380px) {
-            .media-card { width: 205px; min-width: 205px; max-width: 205px; flex-basis: 205px; }
-        }
-    </style>
-
+    <script>tailwind.config={theme:{extend:{fontFamily:{sans:["Inter","sans-serif"],mono:["JetBrains Mono","monospace"]},boxShadow:{panel:"0 24px 80px rgba(0,0,0,.5)",soft:"0 12px 40px rgba(0,0,0,.22)"}}}};</script>
+    <link rel="stylesheet" href="/WATon.css">
     <script src="./WatonUI.js" type="text/javascript"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
@@ -71,8 +39,16 @@
 <body x-data="watonUI()" x-init="init()" @keydown.escape.window="settingsOpen = false" class="overflow-hidden bg-black font-sans text-white antialiased">
     <div x-cloak x-show="authLoading" class="auth-surface fixed inset-0 z-[300] flex items-center justify-center">
         <div class="flex flex-col items-center">
-            <div class="relative flex h-14 w-14 items-center justify-center rounded-[18px] border border-white/[0.07] bg-white/[0.03] shadow-panel">
-                <i data-lucide="message-square-more" class="h-5 w-5 text-zinc-400"></i>
+            <div class="relative h-14 w-14 shrink-0">
+                <img
+                    src="/icon.png"
+                    alt="WATon"
+                    width="56"
+                    height="56"
+                    draggable="false"
+                    decoding="async"
+                    class="waton-logo rounded-[18px]"
+                >
                 <span class="absolute -bottom-1 -right-1 h-4 w-4 rounded-full border-[3px] border-[#050505] bg-emerald-500"></span>
             </div>
             <div class="mt-5 h-3.5 w-3.5 animate-spin rounded-full border border-zinc-800 border-t-zinc-400"></div>
@@ -86,8 +62,16 @@
 
         <div class="relative w-full max-w-[390px]" data-aos="fade-up">
             <div class="mb-7 text-center">
-                <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-[18px] border border-white/[0.075] bg-white/[0.035] shadow-[0_24px_70px_rgba(0,0,0,.55)]">
-                    <i data-lucide="message-square-more" class="h-5 w-5 text-zinc-300"></i>
+                <div class="mx-auto mb-4 h-14 w-14 shrink-0 shadow-[0_24px_70px_rgba(0,0,0,.55)]">
+                    <img
+                        src="/icon.png"
+                        alt="WATon"
+                        width="56"
+                        height="56"
+                        draggable="false"
+                        decoding="async"
+                        class="waton-logo rounded-[18px]"
+                    >
                 </div>
                 <div class="flex items-center justify-center gap-2">
                     <h1 class="text-[17px] font-semibold tracking-[-0.03em] text-zinc-100">WATon</h1>
@@ -158,8 +142,16 @@
         <aside id="sidebar" class="relative z-20 flex h-full w-full shrink-0 flex-col border-r border-white/[0.065] bg-[#080808]/95 md:w-[350px] lg:w-[380px]">
             <header class="glass hairline flex h-[68px] shrink-0 items-center justify-between border-b border-white/[0.055] px-4">
                 <div class="flex min-w-0 items-center gap-3">
-                    <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/[0.07] bg-white/[0.035] shadow-inner shadow-white/[0.025]">
-                        <i data-lucide="message-square-more" class="h-[17px] w-[17px] text-zinc-300"></i>
+                    <div class="h-9 w-9 shrink-0">
+                        <img
+                            src="/icon.png"
+                            alt="WATon"
+                            width="36"
+                            height="36"
+                            draggable="false"
+                            decoding="async"
+                            class="waton-logo rounded-xl"
+                        >
                     </div>
                     <div class="min-w-0">
                         <div class="flex items-center gap-2">
@@ -218,7 +210,17 @@
 
             <div id="chatList" class="flex-1 overflow-y-auto overscroll-contain px-2.5 pb-4">
                 <div id="emptyChats" class="flex h-full flex-col items-center justify-center px-8 text-center">
-                    <div class="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-white/[0.06] bg-white/[0.025] shadow-soft"><i data-lucide="messages-square" class="h-6 w-6 text-zinc-700"></i></div>
+                    <div class="mb-4 h-14 w-14 shrink-0">
+                        <img
+                            src="/icon.png"
+                            alt="WATon"
+                            width="56"
+                            height="56"
+                            draggable="false"
+                            decoding="async"
+                            class="waton-logo rounded-[18px]"
+                        >
+                    </div>
                     <p class="text-[12px] font-medium text-zinc-500">No conversations</p>
                     <p class="mt-1 max-w-[190px] text-[10px] leading-relaxed text-zinc-700">Your recent conversations will appear here.</p>
                 </div>
@@ -239,9 +241,16 @@
 
             <section id="welcomeScreen" class="relative z-10 flex flex-1 items-center justify-center px-6 text-center">
                 <div data-aos="fade-up" data-aos-duration="600" class="max-w-sm">
-                    <div class="relative mx-auto mb-5 flex h-[68px] w-[68px] items-center justify-center rounded-[22px] border border-white/[0.07] bg-white/[0.025] shadow-panel">
-                        <div class="absolute inset-[6px] rounded-[17px] border border-white/[0.035]"></div>
-                        <i data-lucide="messages-square" class="relative h-6 w-6 text-zinc-500"></i>
+                    <div class="relative mx-auto mb-5 h-[68px] w-[68px] shrink-0 shadow-panel">
+                        <img
+                            src="/icon.png"
+                            alt="WATon"
+                            width="68"
+                            height="68"
+                            draggable="false"
+                            decoding="async"
+                            class="waton-logo rounded-[22px]"
+                        >
                     </div>
                     <h2 class="text-[16px] font-semibold tracking-[-0.025em] text-zinc-200">Private messaging</h2>
                     <p class="mx-auto mt-2 max-w-[270px] text-[11px] leading-[1.7] text-zinc-600">Choose a conversation from the sidebar to open your private workspace.</p>
@@ -413,11 +422,7 @@
             </div>
         </div>
     </div>
-
-    <!-- SETTINGS BACKDROP -->
     <div x-cloak x-show="authenticated && settingsOpen" x-transition.opacity.duration.300ms @click="settingsOpen=false" class="fixed inset-0 z-40 bg-black/55 backdrop-blur-[3px]"></div>
-
-    <!-- SETTINGS -->
     <aside id="_menu_sidebar" x-cloak x-show="authenticated && settingsOpen"
         x-transition:enter="transition duration-400 ease-[cubic-bezier(.22,1,.36,1)]"
         x-transition:enter-start="translate-x-full opacity-0"
@@ -426,18 +431,32 @@
         x-transition:leave-start="translate-x-0 opacity-100"
         x-transition:leave-end="translate-x-full opacity-0"
         class="fixed inset-y-0 right-0 z-50 flex w-full max-w-[390px] flex-col border-l border-white/[0.07] bg-[#080808]/95 shadow-[-30px_0_100px_rgba(0,0,0,.5)] backdrop-blur-2xl">
-
         <header class="glass flex h-[68px] shrink-0 items-center justify-between border-b border-white/[0.055] px-4">
             <div class="flex items-center gap-3">
-                <div class="flex h-9 w-9 items-center justify-center rounded-xl border border-white/[0.065] bg-white/[0.03]"><i data-lucide="settings-2" class="h-4 w-4 text-zinc-400"></i></div>
-                <div><h2 class="text-[12px] font-semibold text-zinc-200">Control Panel</h2><p class="mt-0.5 font-mono text-[8px] text-zinc-700">Session configuration</p></div>
+                <div class="flex h-9 w-9 items-center justify-center rounded-xl border border-white/[0.065] bg-white/[0.03]">
+                    <i data-lucide="settings-2" class="h-4 w-4 text-zinc-400"></i>
+                </div>
+                <div>
+                    <h2 class="text-[12px] font-semibold text-zinc-200">Control Panel</h2>
+                    <p class="mt-0.5 font-mono text-[8px] text-zinc-700">Session configuration</p>
+                </div>
             </div>
-            <button id="_close_menu" type="button" @click="settingsOpen = false" class="group flex h-9 w-9 items-center justify-center rounded-xl text-zinc-600 transition hover:bg-white/[0.045] hover:text-zinc-300 active:scale-95"><i data-lucide="x" class="h-4 w-4 transition-transform duration-300 group-hover:rotate-90"></i></button>
+            <button
+                id="_close_menu"
+                type="button"
+                @click="settingsOpen=false"
+                class="group flex h-9 w-9 items-center justify-center rounded-xl text-zinc-600 transition hover:bg-white/[0.045] hover:text-zinc-300 active:scale-95"
+            >
+                <i data-lucide="x" class="h-4 w-4 transition-transform duration-300 group-hover:rotate-90"></i>
+            </button>
         </header>
 
         <div class="custom-scroll flex-1 overflow-y-auto px-3.5 py-5">
             <section>
-                <div class="mb-2.5 flex items-center justify-between px-1"><span class="font-mono text-[8px] uppercase tracking-[0.2em] text-zinc-700">Automation</span><span class="font-mono text-[8px] text-zinc-800">02</span></div>
+                <div class="mb-2.5 flex items-center justify-between px-1">
+                    <span class="font-mono text-[8px] uppercase tracking-[0.2em] text-zinc-700">Automation</span>
+                    <span class="font-mono text-[8px] text-zinc-800">03</span>
+                </div>
 
                 <div class="overflow-hidden rounded-2xl border border-white/[0.055] bg-white/[0.016]">
                     <div class="group flex items-center gap-3 border-b border-white/[0.045] px-3 py-3 transition hover:bg-white/[0.025]">
@@ -504,32 +523,49 @@
                 <div class="mb-2.5 px-1"><span class="font-mono text-[8px] uppercase tracking-[0.2em] text-zinc-700">Account</span></div>
                 <div class="rounded-2xl border border-white/[0.055] bg-white/[0.016] p-2">
                     <div class="flex items-center gap-3 rounded-xl px-2.5 py-2.5">
-                        <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/[0.065] bg-white/[0.035]"><i data-lucide="user-round" class="h-4 w-4 text-zinc-600"></i></div>
-                        <div class="min-w-0 flex-1"><p class="truncate text-[10px] font-medium text-zinc-400" x-text="username || '—'"></p><p class="mt-0.5 font-mono text-[8px] text-zinc-700">Authenticated session</p></div>
+                        <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/[0.065] bg-white/[0.035]">
+                            <i data-lucide="user-round" class="h-4 w-4 text-zinc-600"></i>
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <p class="truncate text-[10px] font-medium text-zinc-400" x-text="username || '—'"></p>
+                            <p class="mt-0.5 font-mono text-[8px] text-zinc-700">Authenticated session</p>
+                        </div>
                         <span class="h-1.5 w-1.5 rounded-full bg-emerald-500/80 shadow-[0_0_7px_rgba(34,197,94,.35)]"></span>
                     </div>
                 </div>
             </section>
 
             <section class="mt-7">
-                <div class="mb-2.5 px-1"><span class="font-mono text-[8px] uppercase tracking-[0.2em] text-zinc-700">Danger zone</span></div>
+                <div class="mb-2.5 px-1">
+                    <span class="font-mono text-[8px] uppercase tracking-[0.2em] text-zinc-700">Danger zone</span>
+                </div>
 
                 <button id="_logout" type="button" @click="logout()" class="group flex w-full items-center gap-3 rounded-2xl border border-red-500/[0.09] bg-red-500/[0.025] px-3 py-3 text-left transition hover:border-red-500/[0.14] hover:bg-red-500/[0.045] active:scale-[.99]">
-                    <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-red-500/[0.08] bg-red-500/[0.04]"><i data-lucide="log-out" class="h-4 w-4 text-red-400/60 transition group-hover:text-red-400"></i></div>
-                    <div class="min-w-0 flex-1"><p class="text-[11px] font-medium text-red-400/75">Logout WATon</p><p class="mt-0.5 font-mono text-[8px] text-zinc-700">Sign out from this web session</p></div>
+                    <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-red-500/[0.08] bg-red-500/[0.04]">
+                        <i data-lucide="log-out" class="h-4 w-4 text-red-400/60 transition group-hover:text-red-400"></i>
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <p class="text-[11px] font-medium text-red-400/75">Logout WATon</p>
+                        <p class="mt-0.5 font-mono text-[8px] text-zinc-700">Sign out from this web session</p>
+                    </div>
                     <i data-lucide="chevron-right" class="h-3.5 w-3.5 text-zinc-800 transition group-hover:translate-x-0.5 group-hover:text-red-400/50"></i>
                 </button>
             </section>
         </div>
 
         <footer class="shrink-0 border-t border-white/[0.045] px-4 py-3">
-            <div class="flex items-center justify-between"><span class="font-mono text-[7px] uppercase tracking-[0.18em] text-zinc-800">WATon Interface</span><span class="font-mono text-[7px] text-zinc-800">v1.0</span></div>
+            <div class="flex items-center justify-between">
+                <span class="font-mono text-[7px] uppercase tracking-[0.18em] text-zinc-800">WATon Interface</span>
+                <span class="font-mono text-[7px] text-zinc-800">v1.0</span>
+            </div>
         </footer>
     </aside>
 
     <div id="deleteChatModal" class="fixed inset-0 z-[180] hidden items-center justify-center bg-black/70 p-4 backdrop-blur-md">
         <div class="w-full max-w-[350px] rounded-[24px] border border-white/[0.075] bg-[#0a0a0a] p-5 shadow-[0_32px_100px_rgba(0,0,0,.7)]">
-            <div class="flex h-11 w-11 items-center justify-center rounded-2xl border border-red-500/[0.1] bg-red-500/[0.04]"><i data-lucide="trash-2" class="h-[18px] w-[18px] text-red-400/70"></i></div>
+            <div class="flex h-11 w-11 items-center justify-center rounded-2xl border border-red-500/[0.1] bg-red-500/[0.04]">
+                <i data-lucide="trash-2" class="h-[18px] w-[18px] text-red-400/70"></i>
+            </div>
             <h3 class="mt-5 text-[13px] font-semibold text-zinc-200">Hapus chat?</h3>
             <p class="mt-1.5 text-[10px] leading-[1.6] text-zinc-600">Anda yakin ingin menghapus chat dengan <span id="deleteChatName" class="font-medium text-zinc-400"></span>? Chat akan dihapus dari database WATon.</p>
             <div class="mt-5 flex gap-2">
@@ -538,24 +574,26 @@
             </div>
         </div>
     </div>
-
-    <!-- TOAST -->
     <div id="toastContainer" class="pointer-events-none fixed bottom-4 right-4 z-[150] flex flex-col gap-2"></div>
-
-    <!-- SYNC MODAL -->
     <div id="syncModal" class="fixed inset-0 z-[90] hidden items-center justify-center bg-black/70 p-5 backdrop-blur-md">
         <div data-aos="zoom-in" class="w-full max-w-[350px] rounded-[24px] border border-white/[0.075] bg-[#0a0a0a] p-5 shadow-[0_32px_100px_rgba(0,0,0,.65)]">
             <div class="mb-5 flex items-start justify-between">
-                <div class="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/[0.065] bg-white/[0.03]"><i data-lucide="refresh-cw" class="h-[18px] w-[18px] animate-spin text-zinc-400"></i></div>
+                <div class="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/[0.065] bg-white/[0.03]">
+                    <i data-lucide="refresh-cw" class="h-[18px] w-[18px] animate-spin text-zinc-400"></i>
+                </div>
                 <span class="rounded-md border border-white/[0.05] bg-white/[0.025] px-2 py-1 font-mono text-[7px] uppercase tracking-[0.14em] text-zinc-700">Sync</span>
             </div>
             <h3 class="text-[13px] font-semibold tracking-tight text-zinc-200">Synchronizing WhatsApp</h3>
             <p id="modalSyncText" class="mt-1.5 text-[10px] leading-relaxed text-zinc-600">Preparing synchronization...</p>
-            <div class="mt-5 h-[3px] overflow-hidden rounded-full bg-white/[0.055]"><div id="syncProgress" class="h-full w-0 rounded-full bg-zinc-200 transition-all duration-300"></div></div>
-            <div class="mt-2.5 flex justify-between font-mono text-[8px] text-zinc-700"><span id="syncProcessed">0</span><span id="syncTotal">0</span></div>
+            <div class="mt-5 h-[3px] overflow-hidden rounded-full bg-white/[0.055]">
+                <div id="syncProgress" class="h-full w-0 rounded-full bg-zinc-200 transition-all duration-300"></div>
+            </div>
+            <div class="mt-2.5 flex justify-between font-mono text-[8px] text-zinc-700">
+                <span id="syncProcessed">0</span>
+                <span id="syncTotal">0</span>
+            </div>
         </div>
     </div>
-
     <script src="https://unpkg.com/aos@2.3.4/dist/aos.js"></script>
     <script src="./script.js"></script>
     <script>lucide.createIcons();</script>

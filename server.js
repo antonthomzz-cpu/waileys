@@ -1,6 +1,7 @@
 import "./src/config/module.js";
 
 import Fuse from "fuse.js";
+import cookieParser from "cookie-parser";
 
 import { api_register } from "./api/auth/register.js";
 import { api_login } from "./api/auth/login.js";
@@ -8,10 +9,20 @@ import { api_logout } from "./api/auth/logout.js";
 import { api_me } from "./api/auth/me.js";
 import { api_media } from "./api/media/index.js";
 
+import { create_login_token } from "./src/utils/login_crypto.js";
+
 const MAX_MEDIA_UPLOAD = 64 * 1024 * 1024;
 
+app.use(cookieParser());
+
+app.get("/api/auth/login/bootstrap", (req, res) => {
+    const publicKey = create_login_token(res);
+    res.set("Cache-Control", "no-store");
+    return res.json({success:true,publicKey});
+});
+
 app.post("/api/auth/register", async (req, res) => await api_register(req, res));
-app.post("/api/auth/login", async (req, res) => await api_login(req, res));
+app.post("/api/auth/login", api_login);
 app.post("/api/auth/logout", require_auth, (req, res) => api_logout(req, res));
 app.get("/api/auth/me", (req, res) => api_me(req, res));
 app.get("/api/media/:userId/:id", require_auth, (req, res) => api_media(req, res));
@@ -21,9 +32,9 @@ app.get("/api/media/:userId/:id", require_auth, (req, res) => api_media(req, res
 function prepare_message(m) {
     if (!m?.key) return m;
 
-    m.id = m.key.id;
-    m.chat = normalize_jid(m.key.remoteJid);
-    m.fromMe = Boolean(m.key.fromMe);
+    m.id = m.key?.id;
+    m.chat = m.key?.remoteJid;
+    m.fromMe = m.key?.fromMe;
     m.body = m_text(m);
     m.type = m_type(m, false);
     m.type_key = m_type(m, true);
