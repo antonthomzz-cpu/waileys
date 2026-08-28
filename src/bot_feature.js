@@ -6,6 +6,18 @@ import "./config/module.js";
 import { Sticker, StickerTypes } from "wa-sticker-formatter";
 import { bratGen } from "brat-canvas";
 
+const VERIFICATION = {
+    key: {
+        remoteJid: "0@s.whatsapp.net",
+        fromMe: false,
+        participant: "0@s.whatsapp.net"
+    },
+    message: {
+        conversation: "Asisten WATon༼⁠ ⁠つ⁠ ⁠◕⁠‿⁠◕⁠ ⁠༽⁠つ"
+    }
+};
+
+
 export async function bot_feature(sock, m) {
     try {
         m.args = m.body.slice(1).trim().split(/\s+/);
@@ -13,7 +25,6 @@ export async function bot_feature(sock, m) {
         m.quoted = m.traverse(".quotedMessage", { group: 1 });
         m.reply = text => sock.sendMessage(m.chat, { text }, { quoted: VERIFICATION });
         m.reply_m = media => sock.sendMessage(m.chat, { ...media }, { quoted: VERIFICATION });
-
 
 
         // AUTO_DOWNLOAD_TIKTOK_VIDEO
