@@ -140,33 +140,35 @@
 
     <div id="app" x-cloak x-show="authenticated" class="app-surface relative flex h-[100dvh] w-full overflow-hidden">
         <aside id="sidebar" class="relative z-20 flex h-full w-full shrink-0 flex-col border-r border-white/[0.065] bg-[#080808]/95 md:w-[350px] lg:w-[380px]">
-            <header class="glass hairline flex h-[68px] shrink-0 items-center justify-between border-b border-white/[0.055] px-4">
+            <header class="glass hairline flex h-[56px] shrink-0 items-center justify-between border-b border-white/[0.055] px-4">
                 <div class="flex min-w-0 items-center gap-3">
-                    <div class="h-9 w-9 shrink-0">
-                        <img
-                            src="/icon.png"
-                            alt="WATon"
-                            width="36"
-                            height="36"
-                            draggable="false"
-                            decoding="async"
-                            class="waton-logo rounded-xl"
-                        >
-                    </div>
                     <div class="min-w-0">
                         <div class="flex items-center gap-2">
-                            <h1 class="truncate text-[14px] font-semibold tracking-[-0.02em] text-zinc-100">WATon</h1>
-                            <span class="rounded-md border border-white/[0.06] bg-white/[0.035] px-1.5 py-0.5 font-mono text-[7px] uppercase tracking-wider text-zinc-600">Private</span>
+                            <h1 class="truncate text-[14px] font-semibold tracking-[-0.02em] text-zinc-100">
+                                WhatsApp Ton
+                            </h1>
+
+                            <span x-text="username" class="rounded-md border border-white/[0.06] bg-white/[0.035] px-1.5 py-0.5 font-mono text-[7px] uppercase tracking-wider text-zinc-600">
+                                Private
+                            </span>
                         </div>
+
                         <div class="mt-0.5 flex items-center gap-1.5">
                             <span id="statusDot" class="h-1.5 w-1.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,.35)]"></span>
                             <span id="statusText" class="font-mono text-[9px] text-zinc-600">Offline</span>
                         </div>
                     </div>
                 </div>
-                <button id="_menu" type="button" @click="settingsOpen = true" class="group flex h-9 w-9 items-center justify-center rounded-xl border border-transparent text-zinc-600 transition hover:border-white/[0.065] hover:bg-white/[0.04] hover:text-zinc-300 active:scale-95">
-                    <i data-lucide="sliders-horizontal" class="h-[17px] w-[17px] transition-transform duration-300 group-hover:rotate-6"></i>
-                </button>
+
+                <div class="flex items-center gap-1">
+                    <button id="_logout" type="button" @click="logout()" title="Logout" class="group flex h-8 w-8 items-center justify-center rounded-lg text-zinc-600 transition-all duration-200 hover:bg-red-500/[0.08] hover:text-red-400 active:scale-90">
+                        <i data-lucide="log-out" class="h-4 w-4 transition-transform duration-200 group-hover:-translate-x-0.5"></i>
+                    </button>
+                    <div class="h-4 w-px bg-white/[0.06]"></div>
+                    <button id="_menu" type="button" @click="settingsOpen = true" title="Settings" class="group flex h-8 w-8 items-center justify-center rounded-lg text-zinc-600 transition-all duration-200 hover:bg-white/[0.055] hover:text-zinc-300 active:scale-90">
+                        <i data-lucide="sliders-horizontal" class="h-4 w-4 transition-transform duration-300 group-hover:rotate-6"></i>
+                    </button>
+                </div>
             </header>
 
             <div id="searchWrapper" class="relative shrink-0 px-3 pb-3 pt-3">
@@ -262,7 +264,7 @@
             </section>
 
             <section id="activeChat" class="relative z-10 hidden min-h-0 flex-1 flex-col">
-                <header class="group/header relative z-30 flex h-[58px] shrink-0 items-center gap-3 overflow-hidden border-b border-white/[0.055] bg-[#070707]/80 px-3 backdrop-blur-2xl sm:px-5">
+                <header class="group/header relative z-30 flex h-[56px] shrink-0 items-center gap-3 overflow-hidden border-b border-white/[0.055] bg-[#070707]/80 px-3 backdrop-blur-2xl sm:px-5">
                     <div class="pointer-events-none absolute inset-0 bg-gradient-to-r from-white/[0.015] via-transparent to-white/[0.01]"></div>
                     <div class="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent"></div>
                     <div class="pointer-events-none absolute inset-x-10 bottom-0 h-px bg-gradient-to-r from-transparent via-white/[0.045] to-transparent"></div>
@@ -520,35 +522,43 @@
             </section>
 
             <section class="mt-7">
-                <div class="mb-2.5 px-1"><span class="font-mono text-[8px] uppercase tracking-[0.2em] text-zinc-700">Account</span></div>
-                <div class="rounded-2xl border border-white/[0.055] bg-white/[0.016] p-2">
-                    <div class="flex items-center gap-3 rounded-xl px-2.5 py-2.5">
-                        <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/[0.065] bg-white/[0.035]">
-                            <i data-lucide="user-round" class="h-4 w-4 text-zinc-600"></i>
-                        </div>
-                        <div class="min-w-0 flex-1">
-                            <p class="truncate text-[10px] font-medium text-zinc-400" x-text="username || '—'"></p>
-                            <p class="mt-0.5 font-mono text-[8px] text-zinc-700">Authenticated session</p>
-                        </div>
-                        <span class="h-1.5 w-1.5 rounded-full bg-emerald-500/80 shadow-[0_0_7px_rgba(34,197,94,.35)]"></span>
+                <div class="mb-2.5 flex items-center justify-between px-1">
+                    <span class="font-mono text-[8px] uppercase tracking-[0.2em] text-zinc-700">
+                        Runtime
+                    </span>
+
+                    <div class="flex items-center gap-1.5">
+                        <span id="terminalStatus" class="h-1.5 w-1.5 rounded-full bg-emerald-500/70"></span>
+                        <span class="font-mono text-[7px] text-zinc-800">LIVE</span>
                     </div>
                 </div>
-            </section>
 
-            <section class="mt-7">
-                <div class="mb-2.5 px-1">
-                    <span class="font-mono text-[8px] uppercase tracking-[0.2em] text-zinc-700">Danger zone</span>
-                </div>
+                <button
+                    id="terminalPreview"
+                    type="button"
+                    class="group relative block h-[145px] w-full overflow-hidden rounded-2xl border border-white/[0.06] bg-[#050505] text-left transition hover:border-white/[0.1] active:scale-[.995]"
+                >
+                    <div class="flex h-9 items-center justify-between border-b border-white/[0.05] px-3">
+                        <div class="flex items-center gap-2">
+                            <div class="flex items-center gap-1">
+                                <span class="h-1.5 w-1.5 rounded-full bg-red-500/60"></span>
+                                <span class="h-1.5 w-1.5 rounded-full bg-amber-500/60"></span>
+                                <span class="h-1.5 w-1.5 rounded-full bg-emerald-500/60"></span>
+                            </div>
 
-                <button id="_logout" type="button" @click="logout()" class="group flex w-full items-center gap-3 rounded-2xl border border-red-500/[0.09] bg-red-500/[0.025] px-3 py-3 text-left transition hover:border-red-500/[0.14] hover:bg-red-500/[0.045] active:scale-[.99]">
-                    <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-red-500/[0.08] bg-red-500/[0.04]">
-                        <i data-lucide="log-out" class="h-4 w-4 text-red-400/60 transition group-hover:text-red-400"></i>
+                            <span class="font-mono text-[7px] uppercase tracking-[0.13em] text-zinc-700">WATon runtime</span>
+                        </div>
+
+                        <i data-lucide="maximize-2" class="h-3 w-3 text-zinc-800 transition group-hover:text-zinc-500"></i>
                     </div>
-                    <div class="min-w-0 flex-1">
-                        <p class="text-[11px] font-medium text-red-400/75">Logout WATon</p>
-                        <p class="mt-0.5 font-mono text-[8px] text-zinc-700">Sign out from this web session</p>
+
+                    <div id="terminalPreviewOutput" class="pointer-events-none h-[105px] overflow-hidden px-3 py-2 font-mono text-[8px] leading-[1.7] text-zinc-600">
+                        <div class="text-zinc-800">
+                            [SYSTEM] waiting for runtime logs...
+                        </div>
                     </div>
-                    <i data-lucide="chevron-right" class="h-3.5 w-3.5 text-zinc-800 transition group-hover:translate-x-0.5 group-hover:text-red-400/50"></i>
+
+                    <div class="pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-[#050505] to-transparent"></div>
                 </button>
             </section>
         </div>
@@ -574,7 +584,92 @@
             </div>
         </div>
     </div>
+
+    <div id="terminalModal" class="fixed inset-0 z-[220] hidden flex-col bg-[#030303]">
+        <header class="flex h-[58px] shrink-0 items-center justify-between border-b border-white/[0.06] bg-[#070707]/95 px-3 backdrop-blur-xl sm:px-5">
+            <div class="flex min-w-0 items-center gap-3">
+                <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-white/[0.06] bg-white/[0.025]">
+                    <i data-lucide="terminal" class="h-4 w-4 text-zinc-500"></i>
+                </div>
+
+                <div class="min-w-0">
+                    <div class="flex items-center gap-2">
+                        <h2 class="text-[11px] font-medium text-zinc-300">
+                            Runtime Console
+                        </h2>
+
+                        <span class="flex items-center gap-1 font-mono text-[7px] text-zinc-700">
+                            <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                            LIVE
+                        </span>
+                    </div>
+
+                    <p class="mt-0.5 font-mono text-[7px] text-zinc-800">
+                        WATon debug output
+                    </p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-1">
+                <button
+                    id="terminalZoomOut"
+                    type="button"
+                    title="Zoom out"
+                    class="flex h-8 w-8 items-center justify-center rounded-xl text-zinc-600 transition hover:bg-white/[0.04] hover:text-zinc-300"
+                >
+                    <i data-lucide="minus" class="h-3.5 w-3.5"></i>
+                </button>
+
+                <span
+                    id="terminalZoomText"
+                    class="min-w-[38px] text-center font-mono text-[7px] text-zinc-700"
+                >
+                    100%
+                </span>
+
+                <button
+                    id="terminalZoomIn"
+                    type="button"
+                    title="Zoom in"
+                    class="flex h-8 w-8 items-center justify-center rounded-xl text-zinc-600 transition hover:bg-white/[0.04] hover:text-zinc-300"
+                >
+                    <i data-lucide="plus" class="h-3.5 w-3.5"></i>
+                </button>
+
+                <div class="mx-1 h-4 w-px bg-white/[0.06]"></div>
+
+                <button
+                    id="terminalClear"
+                    type="button"
+                    title="Clear"
+                    class="flex h-8 w-8 items-center justify-center rounded-xl text-zinc-600 transition hover:bg-white/[0.04] hover:text-red-400"
+                >
+                    <i data-lucide="trash-2" class="h-3.5 w-3.5"></i>
+                </button>
+
+                <button
+                    id="terminalClose"
+                    type="button"
+                    title="Close"
+                    class="flex h-8 w-8 items-center justify-center rounded-xl text-zinc-600 transition hover:bg-white/[0.04] hover:text-zinc-300"
+                >
+                    <i data-lucide="x" class="h-4 w-4"></i>
+                </button>
+            </div>
+        </header>
+
+        <div id="terminalScroll" class="min-h-0 flex-1 overflow-auto overscroll-contain">
+            <div id="terminalOutput" class="min-w-max whitespace-pre-wrap break-words p-4 font-mono text-[11px] leading-[1.7] text-zinc-500 sm:p-5"></div>
+        </div>
+
+        <footer class="flex h-8 shrink-0 items-center justify-between border-t border-white/[0.04] px-4">
+            <span id="terminalLogCount" class="font-mono text-[7px] uppercase tracking-[0.12em] text-zinc-800">0 logs</span>
+            <span class="font-mono text-[7px] text-zinc-800">CTRL + WHEEL TO ZOOM</span>
+        </footer>
+    </div>
+
     <div id="toastContainer" class="pointer-events-none fixed bottom-4 right-4 z-[150] flex flex-col gap-2"></div>
+
     <div id="syncModal" class="fixed inset-0 z-[90] hidden items-center justify-center bg-black/70 p-5 backdrop-blur-md">
         <div data-aos="zoom-in" class="w-full max-w-[350px] rounded-[24px] border border-white/[0.075] bg-[#0a0a0a] p-5 shadow-[0_32px_100px_rgba(0,0,0,.65)]">
             <div class="mb-5 flex items-start justify-between">

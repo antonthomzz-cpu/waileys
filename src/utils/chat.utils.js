@@ -86,23 +86,20 @@ function write_json(file, data) {
 export const normalize_identity = (value) => normalize_jid(value);
 
 
-function same_contact(contact, value) {
-    const id = normalize_identity(value);
+function same_contact(contact, jid) {
+    jid = normalize_identity(jid);
 
-    if (!contact || !id) return false;
+    if (!contact || !jid) return false;
 
-    return [contact.jid, contact.lid].some(
-        value => normalize_identity(value) === id
-    );
+    return [contact.jid, contact.lid].some(v => normalize_jid(v) === jid);
 }
 
 
-function find_contact(database, value) {
+function find_contact(database, jid) {
     if (!Array.isArray(database?.contacts)) return null;
 
-    return database.contacts.find(
-        contact => same_contact(contact, value)
-    ) || null;
+    return database.contacts
+        .find(contact => same_contact(contact, jid)) || null;
 }
 
 
@@ -188,7 +185,8 @@ export function public_message(m) {
     if (!m) return null;
 
     const status =
-        m.status === null || m.status === undefined
+        m.status === null ||
+        m.status === undefined
             ? null
             : Number(m.status);
 
@@ -337,13 +335,10 @@ export function read_contact_db(ses) {
         };
     }
 
-    const database = read_json(
-        get_contact_database_path(ses),
-        {
-            total: 0,
-            contacts: []
-        }
-    );
+    const database = read_json(path.join(get_user_dir(ses), "db.contact.json"), {
+        total: 0,
+        contacts: []
+    });
 
     database.contacts = Array.isArray(database.contacts)
         ? database.contacts
@@ -356,9 +351,7 @@ export function read_contact_db(ses) {
 
 
 export function write_contact_db(ses, database) {
-    if (!ses?.userId) {
-        return false;
-    }
+    if (!ses?.userId) return false;
 
     ensure_user_dir(ses);
 
@@ -366,13 +359,10 @@ export function write_contact_db(ses, database) {
         ? database.contacts
         : [];
 
-    return write_json(
-        get_contact_database_path(ses),
-        {
+    return write_json(path.join(get_user_dir(ses), "db.contact.json"), {
             total: contacts.length,
             contacts
-        }
-    );
+    });
 }
 
 
@@ -460,133 +450,77 @@ export function get_contact(ses, value) {
 }
 
 
-export function save_contact(ses, data) {
+export async function save_contact(ses, data) {
     if (!ses || !data) return null;
 
-    const id = normalize_identity(data.id);
-
-    const jid =
-        normalize_identity(data.jid) ||
-        (
-            id?.endsWith("@s.whatsapp.net")
-                ? id
-                : null
-        );
-
-    const lid =
-        normalize_identity(data.lid) ||
-        (
-            id?.endsWith("@lid")
-                ? id
-                : null
-        );
+    const jid = normalize_jid(data.id);
+    const lid = normalize_jid(data.lid);
 
     if (!jid && !lid) return null;
 
     const database = read_contact_db(ses);
+    const index = database.contacts.findIndex(contact => [jid, lid].some(id => id && same_contact(contact, id)));
+    const old = database.contacts[index] || {};
 
-    const index = database.contacts.findIndex(contact =>
-        [jid, lid]
-            .filter(Boolean)
-            .some(id => same_contact(contact, id))
-    );
+    let profilePicture = old.profilePicture || null;
 
-    const old = index >= 0
-        ? database.contacts[index]
-        : {};
+    await ses.sock.profilePictureUrl(jid || lid, "image")
+        .then(url => {
+            profilePicture = url || null;
+            __log(get_user_id(ses), "success", `[PROFILE_PICTURE][${jid}]: ${url}`);
+        })
+        .catch(() => profilePicture = null);
 
-    const contact = {
+    const saved = {
         ...old,
-        jid:
-            jid ||
-            old.jid ||
-            null,
-        lid:
-            lid ||
-            old.lid ||
-            null,
-        name:
-            data.name ||
-            data.username ||
-            old.name ||
-            jid ||
-            lid,
-        username:
-            data.username ||
-            old.username ||
-            null,
-        profilePicture:
-            data.profilePicture ||
-            old.profilePicture ||
-            null
+        jid: jid || old.jid || null,
+        lid: lid || old.lid || null,
+        name: data.name || data.notify || data.verifiedName || data.username || old.name || jid || lid,
+        username: data.username || old.username || null,
+        profilePicture
     };
 
-    if (index >= 0) {
-        database.contacts[index] = contact;
-    } else {
-        database.contacts.push(contact);
-    }
+    if (index >= 0) database.contacts[index] = saved;
+    else database.contacts.push(saved);
+
+    database.total = database.contacts.length;
 
     write_contact_db(ses, database);
 
-    return contact;
+    return saved;
 }
 
 
-export async function update_profile_picture(ses, value) {
-    if (!ses?.sock || !ses.ready || !value) {
-        return null;
-    }
+export async function update_profile_picture(session, target) {
+    if (!session || !target) return null;
 
     try {
-        const contactDatabase = read_contact_db(ses);
-        const contact = find_contact(
-            contactDatabase,
-            value
-        );
+        const contact_db = read_contact_db(session);
+        const contact = find_contact(contact_db, target);
 
-        const jid = normalize_identity(
-            contact?.jid
-        );
+        const jid = normalize_identity(contact?.jid);
 
         if (!jid) return null;
 
-        const url = await ses.sock.profilePictureUrl(
-            jid,
-            "image"
-        );
+        const url = await session.sock.profilePictureUrl(jid, "image");
 
         if (!url) return null;
 
         contact.profilePicture = url;
 
-        write_contact_db(
-            ses,
-            contactDatabase
-        );
+        write_contact_db(session, contact_db);
 
-        const chatDatabase = read_chat_db(ses);
-
-        const chat = chatDatabase.chats.find(
-            chat =>
-                normalize_identity(chat?.jid) === jid
-        );
+        const chat_db = read_chat_db(session);
+        const chat = chat_db.chats.find(chat => normalize_identity(chat?.jid) === jid);
 
         if (chat) {
             chat.profilePicture = url;
-
-            write_chat_db(
-                ses,
-                chatDatabase
-            );
+            write_chat_db(session, chat_db);
         }
 
         return url;
     } catch (error) {
-        console.log(
-            `[PROFILE:${get_user_id(ses)}]: ${error.message}`
-        );
-
+        console.log(`[PROFILE:${get_user_id(session)}]: ${error.message}`);
         return null;
     }
 }
@@ -1053,51 +987,27 @@ function get_quoted_message(ses, message, jid) {
 }
 
 
-export function get_timestamp(message) {
-    const timestamp =
-        message?.messageTimestamp;
+export function get_timestamp(m) {
+    const timestamp = m?.messageTimestamp;
 
-    if (timestamp == null) {
-        return 0;
-    }
+    if (timestamp == null) return 0;
 
-    if (typeof timestamp === "number") {
-        return Number.isFinite(timestamp)
-            ? timestamp
-            : 0;
-    }
+    if (typeof timestamp === "number") return Number.isFinite(timestamp) ? timestamp : 0;
+    if (typeof timestamp === "string") return Number(timestamp) || 0;
 
-    if (typeof timestamp === "string") {
-        return Number(timestamp) || 0;
-    }
-
-    if (
-        typeof timestamp?.toNumber === "function"
-    ) {
+    if (typeof timestamp?.toNumber === "function") {
         try {
             return timestamp.toNumber();
         } catch {}
     }
 
     if (typeof timestamp === "object") {
-        if (timestamp.value != null) {
-            return Number(timestamp.value) || 0;
-        }
+        if (timestamp.value != null) return Number(timestamp.value) || 0;
 
-        const low = Number(
-            timestamp.low || 0
-        );
+        const low = Number(timestamp.low || 0);
+        const high = Number(timestamp.high || 0);
 
-        const high = Number(
-            timestamp.high || 0
-        );
-
-        if (high) {
-            return (
-                high * 0x100000000 +
-                (low >>> 0)
-            );
-        }
+        if (high) return (high * 0x100000000 + (low >>> 0));
 
         return low || 0;
     }
@@ -1408,193 +1318,71 @@ export async function serialize_message(ses, m) {
 }
 
 
-/* =========================================================
- * SAVE MESSAGE
- * ======================================================= */
-
-export async function save_message(
-    ses,
-    m,
-    options={}
-) {
+export async function save_message(ses, m, options={}) {
     if (!ses) return null;
 
-    const content =
-        get_message_content(m);
+    const content = get_message_content(m);
 
-    if (
-        !content ||
-        content.protocolMessage ||
-        content.senderKeyDistributionMessage
-    ) {
+    if (!content || content.protocolMessage || content.senderKeyDistributionMessage) {
         return null;
     }
 
-    /*
-     * Identity dari message hanya dipakai
-     * untuk mencari kontak.
-     *
-     * Biasanya:
-     * m.chat / key.remoteJid = @lid
-     */
-    const identity =
-        get_message_identity(m);
+    const identity = get_message_identity(m);
 
     if (!identity) {
         return null;
     }
 
-    const contact =
-        get_contact(
-            ses,
-            identity
-        );
+    const contact = get_contact(ses, identity);
 
     if (!contact) {
         return null;
     }
 
-    /*
-     * JID database selalu berasal
-     * dari contact.jid.
-     */
-    const jid =
-        normalize_identity(
-            contact.jid
-        );
+    const jid = normalize_identity(contact.jid);
+    const lid = normalize_identity(contact.lid);
 
-    const lid =
-        normalize_identity(
-            contact.lid
-        );
-
-    if (
-        !jid ||
-        !jid.endsWith("@s.whatsapp.net")
-    ) {
+    if (!jid || !jid.endsWith("@s.whatsapp.net")) {
         return null;
     }
 
-    /*
-     * Message harus cocok dengan salah satu
-     * identity milik contact.
-     *
-     * Incoming biasanya cocok ke contact.lid.
-     * Outgoing / kondisi tertentu bisa cocok
-     * langsung ke contact.jid.
-     */
-    if (
-        identity !== jid &&
-        identity !== lid
-    ) {
+    if (identity !== jid && identity !== lid) {
         return null;
     }
 
-    const serialized =
-        await serialize_message(
-            ses,
-            m
-        );
+    const serialized = await serialize_message(ses, m);
 
     if (!serialized) {
         return null;
     }
 
-    const database =
-        read_chat_db(ses);
+    const database = read_chat_db(ses);
+    const aliases = new Set([jid, lid].filter(Boolean));
 
-    /*
-     * Cari chat lama berdasarkan canonical JID
-     * atau LID untuk menangani database lama
-     * yang sempat menyimpan @lid.
-     */
-    const aliases =
-        new Set(
-            [jid, lid]
-                .filter(Boolean)
-        );
+    const matches = database.chats.filter(chat => aliases.has(normalize_identity(chat?.jid)));
+    let chat = matches.find(chat => normalize_identity(chat?.jid) === jid) || matches[0] || null;
 
-    const matches =
-        database.chats.filter(
-            chat =>
-                aliases.has(
-                    normalize_identity(
-                        chat?.jid
-                    )
-                )
-        );
-
-    let chat =
-        matches.find(
-            chat =>
-                normalize_identity(
-                    chat?.jid
-                ) === jid
-        ) ||
-        matches[0] ||
-        null;
-
-    /*
-     * Kalau database sudah terlanjur duplicate
-     * antara JID dan LID, satukan message-nya.
-     */
     if (matches.length > 1) {
-        const messages =
-            new Map();
+        const messages = new Map();
 
         for (const item of matches) {
-            for (
-                const message
-                of item.messages || []
-            ) {
-                if (!message?.id) {
-                    continue;
-                }
+            for (const message of item.messages || []) {
+                if (!message?.id) continue;
 
-                messages.set(
-                    message.id,
-                    {
-                        ...messages.get(
-                            message.id
-                        ),
-                        ...message,
-
-                        // Canonical JID.
-                        jid
-                    }
-                );
+                messages.set(message.id, {
+                    ...messages.get(message.id),
+                    ...message,
+                    jid
+                });
             }
         }
 
-        chat.messages =
-            [...messages.values()]
-                .sort(
-                    (a, b) =>
-                        Number(
-                            a.timestamp || 0
-                        ) -
-                        Number(
-                            b.timestamp || 0
-                        )
-                );
-
-        database.chats =
-            database.chats.filter(
-                item =>
-                    !matches.includes(item) ||
-                    item === chat
-            );
+        chat.messages = [...messages.values()].sort((a, b) => Number(a.timestamp || 0) - Number(b.timestamp || 0));
+        database.chats = database.chats.filter(item => !matches.includes(item) || item === chat);
     }
 
-    const name =
-        contact.name ||
-        contact.username ||
-        m.pushName ||
-        jid;
-
-    const profilePicture =
-        contact.profilePicture ||
-        null;
+    const name = contact?.name || contact?.username || m.pushName || jid;
+    const profilePicture = contact?.profilePicture || null;
 
     if (!chat) {
         chat = {
@@ -1610,111 +1398,49 @@ export async function save_message(
         database.chats.push(chat);
     }
 
-    /*
-     * DB chat selalu canonical contact.jid.
-     */
     chat.jid = jid;
     chat.name = name;
     chat.profilePicture = profilePicture;
     chat.messages ??= [];
 
-    /*
-     * Serialized message juga selalu
-     * menggunakan contact.jid.
-     *
-     * m.key tetap asli dari Baileys.
-     */
     serialized.jid = jid;
 
-    const exists =
-        chat.messages.some(
-            message =>
-                message?.id === serialized.id
-        );
+    const exists = chat.messages.some(message => message?.id === serialized.id);
 
     if (exists) {
-        /*
-         * Tetap simpan karena chat lama mungkin
-         * baru saja dinormalisasi dari LID ke JID.
-         */
-        write_chat_db(
-            ses,
-            database
-        );
-
+        write_chat_db(ses, database);
         return null;
     }
 
-    chat.messages.push(
-        serialized
-    );
+    chat.messages.push(serialized);
 
-    if (
-        chat.messages.length >
-        MAX_CHAT_MESSAGES
-    ) {
-        chat.messages.splice(
-            0,
-            chat.messages.length -
-            MAX_CHAT_MESSAGES
-        );
+    if (chat.messages.length > MAX_CHAT_MESSAGES) {
+        chat.messages.splice(0, chat.messages.length - MAX_CHAT_MESSAGES);
     }
 
-    if (
-        !write_chat_db(
-            ses,
-            database
-        )
-    ) {
-        console.log(
-            `[MESSAGE:${get_user_id(ses)}]: failed saving ${serialized.id}`
-        );
-
+    if (!write_chat_db(ses, database)) {
+        console.log(`[MESSAGE:${get_user_id(ses)}]: failed saving ${serialized.id}`);
         return null;
     }
 
-    const payload =
-        public_message(
-            serialized
-        );
+    const payload = public_message(serialized);
 
     if (options.history) {
         return payload;
     }
 
-    emit_session(
-        ses,
-        SOCKET.WA_MESSAGE,
-        {
-            message:
-                payload,
-
-            chat: {
-                jid,
-                name,
-                profilePicture,
-                unreadCount:
-                    Number(
-                        chat.unreadCount || 0
-                    )
-            }
+    emit_session(ses, SOCKET.WA_MESSAGE, {
+        message: payload,
+        chat: {
+            jid,
+            name,
+            profilePicture,
+            unreadCount: Number(chat.unreadCount || 0)
         }
-    );
+    });
 
-    emit_session(
-        ses,
-        SOCKET.WA_CHAT_UPDATE,
-        get_chat(
-            ses,
-            jid
-        )
-    );
-
-    emit_session(
-        ses,
-        SOCKET.WA_CHAT_LIST,
-        get_chat_list(ses)
-    );
+    emit_session(ses, SOCKET.WA_CHAT_UPDATE, get_chat(ses, jid));
+    emit_session(ses, SOCKET.WA_CHAT_LIST, get_chat_list(ses));
 
     return payload;
 }

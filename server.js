@@ -42,8 +42,8 @@ function prepare_message(m) {
     return m;
 }
 
-function get_contact_identity(ses, input) {
-    const source = normalize_jid(input);
+function get_contact_identity(ses, remoteJid) {
+    const source = normalize_jid(remoteJid);
 
     if (!source) return null;
 
@@ -55,12 +55,7 @@ function get_contact_identity(ses, input) {
         return null;
     }
 
-    return {
-        source,
-        jid,
-        lid,
-        contact
-    };
+    return { source, jid, lid, contact };
 }
 
 function build_quoted_content(m) {
@@ -151,7 +146,7 @@ function delete_message_media(ses, message) {
             fs.unlinkSync(file);
         }
     } catch (error) {
-        option.fatal && console.log(`\x1b[31m[ERROR]:\x1b[0m delete_message_media() | msg=${error.message}`);
+        __log(get_user_id(ses), `[ERROR]: delete_message_media() | msg=${error.message}`);
     }
 }
 
@@ -259,7 +254,7 @@ io.on("connection", socket => {
 
     socket.join(user_room(socket.data.userId));
 
-    console.log(`\x1b[90m[WEB]:\x1b[0m Connected: ${socket.id} | user=${socket.data.userId}`);
+    console.log(`[WEB_CONNECTED]: socket=${socket.id} | user=${socket.data.userId}`);
 
     socket.emit("bot:features", read_feature_db(ses));
     socket.emit(SOCKET.WA_STATUS, {
@@ -355,7 +350,7 @@ io.on("connection", socket => {
 
             emit_user(socket.data.userId, SOCKET.WA_CHAT_LIST, get_chat_list(ses));
         } catch (error) {
-            console.log(`[CHAT_OPEN_ERROR][${socket.data.userId}]: ${error.message}`);
+            __log(socket.data.userId, "fatal", `[CHAT_OPEN_ERROR]: ${error.message}`);
             socket.emit(SOCKET.WA_ERROR, error.message || "Gagal membuka chat");
         }
     });
@@ -406,7 +401,7 @@ io.on("connection", socket => {
                 });
             }
         } catch (error) {
-            console.log(`[SEND_ERROR][${socket.data.userId}]: ${error.message}`);
+            __log(socket.data.userId, "fatal", `[SEND_ERROR]: ${error.message}`);
 
             callback?.({
                 success: false,
@@ -540,7 +535,7 @@ io.on("connection", socket => {
                 id
             });
         } catch (error) {
-            console.log(`\x1b[31m[MEDIA_SEND_ERROR][${socket.data.userId}]:\x1b[0m ${error.message}`);
+            __log(socket.data.userId, "fatal", `[MEDIA_SEND_ERROR]: ${error.message}`);
 
             callback({
                 success: false,
@@ -593,7 +588,7 @@ io.on("connection", socket => {
             emit_user(socket.data.userId, SOCKET.WA_CHAT_UPDATE, get_chat(ses, jid));
             emit_user(socket.data.userId, SOCKET.WA_CHAT_LIST, get_chat_list(ses));
         } catch (error) {
-            console.log(`\x1b[31m[CHAT_READ_ERROR][${socket.data.userId}]:\x1b[0m ${error.message}`);
+            __log(socket.data.userId, "fatal", `[CHAT_READ_ERROR]: ${error.message}`);
         }
     });
     // END READ_CHAT
@@ -685,7 +680,7 @@ io.on("connection", socket => {
 
             emit_user(socket.data.userId, SOCKET.WA_CHAT_LIST, get_chat_list(ses));
         } catch (error) {
-            console.log(`\x1b[31m[MESSAGE_DELETE_ERROR][${socket.data.userId}]:\x1b[0m ${error.message}`);
+            __log(socket.data.userId, "fatal", `[MESSAGE_DELETE_ERROR]: ${error.message}`);
             socket.emit(SOCKET.WA_ERROR, error.message || "Gagal menghapus pesan");
         }
     });
@@ -758,14 +753,14 @@ io.on("connection", socket => {
                         fs.unlinkSync(file);
                     }
                 } catch (error) {
-                    console.log(`\x1b[31m[MEDIA_DELETE][${socket.data.userId}]:\x1b[0m ${error.message}`);
+                    __log(socket.data.userId, "fatal", `[MEDIA_DELETE]: ${error.message}`);
                 }
             }
 
             emit_user(socket.data.userId, "wa:chat:deleted", { jid });
             emit_user(socket.data.userId, SOCKET.WA_CHAT_LIST, get_chat_list(ses));
         } catch (error) {
-            console.log(`\x1b[31m[CHAT_DELETE_ERROR][${socket.data.userId}]:\x1b[0m ${error.message}`);
+            __log(socket.data.userId, "fatal", `[CHAT_DELETE_ERROR]: ${error.message}`);
             socket.emit(SOCKET.WA_ERROR, "Gagal menghapus chat");
         }
     });
@@ -832,7 +827,7 @@ io.on("connection", socket => {
 
             callback?.(results);
         } catch (error) {
-            console.log(`[CONTACT_SEARCH]: ${error.message}`);
+            __log(socket.data.userId, "fatal", `[CONTACT_SEARCH]: ${error.message}`);
             callback?.([]);
         }
     });
@@ -878,7 +873,8 @@ async function waton_start({
             defaultQueryTimeoutMs: undefined,
             emitOwnEvents: true,
             fireInitQueries: true,
-            syncFullHistory: false
+            syncFullHistory: false,
+            shouldSyncHistoryMessage: ({ syncType }) => syncType !== proto.HistorySync.HistorySyncType.FULL
         });
 
         if (!(ses.media instanceof Map)) {
@@ -935,13 +931,15 @@ async function waton_start({
                     const jid = normalize_jid(chat?.jid);
                     if (!jid) continue;
 
-                    update_profile_picture(ses, jid)
-                        .then(picture => {
-                            if (!picture) return;
+                    try {
+                        const picture = update_profile_picture(ses, jid);
+                        if (!picture) continue;
 
-                            emit_user(userId, SOCKET.WA_CHAT_UPDATE, get_chat(ses, jid));
-                            emit_user(userId, SOCKET.WA_CHAT_LIST, get_chat_list(ses));
-                        }).catch(() => {});
+                        emit_user(userId, SOCKET.WA_CHAT_UPDATE, get_chat(ses, jid));
+                        emit_user(userId, SOCKET.WA_CHAT_LIST, get_chat_list(ses));
+                    } catch (error) {
+                        console.log(error.message);
+                    }
                 }
             }
 
@@ -963,54 +961,22 @@ async function waton_start({
                         waton_start({
                             userId
                         });
-                    }, 3000);
+                    }, 2000);
                 }
             }
         });
 
 
-        ses.sock.ev.on("contacts.upsert", async contacts => {
+        ses.sock.ev.on("contacts.upsert", async (contacts) => {
+            __log(userId, "debug", `Total kontak ${contacts.length}`)
+
             for (const contact of contacts) {
-                save_contact(ses, contact);
+                await save_contact(ses, contact);
             }
-
-            const database = read_contact_db(ses);
-
-            for (const incomingContact of contacts) {
-                const inputJid = normalize_jid(incomingContact?.jid);
-                const inputLid = normalize_jid(incomingContact?.lid);
-
-                const saved = database.contacts.find(contact => {
-                    const jid = normalize_jid(contact?.jid);
-                    const lid = normalize_jid(contact?.lid);
-
-                    return (
-                        jid === inputJid ||
-                        jid === inputLid ||
-                        lid === inputJid ||
-                        lid === inputLid
-                    );
-                });
-
-                if (!saved) continue;
-
-                const target = normalize_jid(saved.jid) || normalize_jid(saved.lid);
-
-                if (!target) continue;
-
-                await ses.sock.profilePictureUrl(target, "image")
-                    .then(picture => {
-                        if (picture) {
-                            saved.profilePicture = picture;
-                        }
-                    }).catch(() => {});
-            }
-
-            write_contact_db(ses, database);
 
             emit_user(userId, SOCKET.WA_SYNC_PROGRESS, {
                 type: SOCKET.WA_CONTACT_LIST,
-                count: database.total
+                count: contacts.length
             });
         });
 
@@ -1261,13 +1227,8 @@ async function waton_start({
             syncType,
             progress
         }) => {
-            const incomingMessages = Array.isArray(messages) ? messages : [];
-            const historyMessages = incomingMessages.filter(message => !is_ignored_key(message?.key));
-
-            const minimumTimestamp = Math.floor(Date.now() / 1000) - (30 * 24 * 60 * 60);
-
-            let processed = 0;
-            let skipped = 0;
+            const latest = new Map();
+            const database = read_chat_db(ses);
 
             ses.syncing = true;
 
@@ -1276,95 +1237,66 @@ async function waton_start({
                 syncing: true
             });
 
-            emit_user(userId, SOCKET.WA_SYNC_START);
+            for (const m of messages || []) {
+                const jid = m?.key?.remoteJid;
 
-            emit_user(userId, SOCKET.WA_SYNC_PROGRESS, {
-                type: SOCKET.WA_SYNC_START,
-                total: historyMessages.length
-            });
-
-            console.log(
-                `[HISTORY][${userId}]: menerima ${historyMessages.length} pesan | ` +
-                `isLatest=${isLatest} syncType=${syncType ?? "-"} progress=${progress ?? "-"}`
-            );
-
-            for (const m of historyMessages) {
-                if (!m?.key || !m.message) {
-                    skipped++;
-                    continue;
-                }
-
-                prepare_message(m);
-
-                if (!m.chat) {
-                    skipped++;
-                    continue;
-                }
-
-                if (/@(?:g\.us|broadcast|newsletter)$/.test(String(m.chat))) {
-                    skipped++;
-                    continue;
-                }
+                if (/@(?:g\.us|broadcast|newsletter)$/.test(jid)) continue;
 
                 const timestamp = get_timestamp(m);
+                const current = latest.get(jid);
 
-                if (timestamp > 0 && timestamp < minimumTimestamp) {
+                if (!current || timestamp > get_timestamp(current)) {
+                    latest.set(jid, m);
+                }
+            }
+
+            let processed = 0;
+            let skipped = 0;
+
+            for (const [jid, m] of latest) {
+                const chat = database.chats.find(v => v.jid === jid);
+
+                const lastTimestamp = Math.max(0, ...(chat?.messages || []).map(v => Number(v.timestamp || 0)));
+                const timestamp = get_timestamp(m);
+
+                if (timestamp <= lastTimestamp) {
                     skipped++;
                     continue;
                 }
 
                 try {
                     const saved = await save_message(ses, m, { history: true });
-                    saved ? processed++ : skipped++;
+
+                    saved
+                        ? processed++
+                        : skipped++;
                 } catch (error) {
                     skipped++;
-                    console.log(`[HISTORY_ERROR][${userId}]: ${error.message || error}`);
-                }
-
-                if ((processed + skipped) % 25 === 0) {
-                    emit_user(userId, SOCKET.WA_SYNC_PROGRESS, {
-                        type: SOCKET.WA_SYNC_PROGRESS,
-                        processed,
-                        skipped,
-                        total: historyMessages.length
-                    });
+                    console.log(`[HISTORY_ERROR][${userId}]:`, error.message || error);
                 }
             }
 
             emit_user(userId, SOCKET.WA_CHAT_LIST, get_chat_list(ses));
-            emit_user(userId, SOCKET.WA_SYNC_PROGRESS, {
-                type: SOCKET.WA_SYNC_COMPLETE,
-                processed,
-                skipped,
-                total: historyMessages.length,
-                isLatest: Boolean(isLatest)
-            });
 
-            console.log(`[HISTORY][${userId}]: chats=${processed} skipped=${skipped}`);
+            console.log(
+                `[HISTORY][${userId}] latest=${processed} skipped=${skipped} ` +
+                `syncType=${syncType ?? "-"} progress=${progress ?? "-"}`
+            );
 
-            if (isLatest) {
+            if (progress === 100 || isLatest) {
                 ses.syncing = false;
 
-                const contactDatabase = read_contact_db(ses);
-                const chatDatabase = read_chat_db(ses);
-
                 emit_user(userId, SOCKET.WA_SYNC_COMPLETE, {
-                    contacts: contactDatabase.total,
-                    chats: chatDatabase.chats.length,
                     messages: processed
                 });
 
                 emit_user(userId, SOCKET.WA_STATUS, {
                     connected: ses.ready,
-                    syncing:false
+                    syncing: false
                 });
 
                 emit_user_sync(userId, ses);
-                console.log(`[HISTORY][${userId}]: selesai | messages=${processed} skipped=${skipped}`);
-                return;
             }
-
-            console.log(`[HISTORY][${userId}]: batch selesai, menunggu batch berikutnya...`);
         });
     } catch (error) {
         ses.starting = false;

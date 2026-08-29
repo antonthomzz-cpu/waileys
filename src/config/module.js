@@ -13,6 +13,7 @@ import expressSession from "express-session";
 import sessionFileStore from "session-file-store";
 
 import {
+    proto,
     Browsers,
     makeWASocket,
     DisconnectReason,
@@ -204,6 +205,18 @@ function emit_user_sync(userId, session) {
     });
 }
 
+function __log(userId, level, ...args) {
+    const message = args
+        .map(value => value instanceof Error ? value.stack || value.message : typeof value === "object" ? JSON.stringify(value) : String(value))
+        .join(" ");
+
+    emit_user(userId, "wa:log", {
+        level,
+        message,
+        time: new Date().toLocaleTimeString("en-GB")
+    });
+}
+
 function is_ignored_key(key={}) {
     return (
         normalize_jid(key.remoteJid || key.key?.remoteJid) === IGNORED_BROADCAST_JID ||
@@ -328,6 +341,7 @@ Object.assign(globalThis, {
     SESSION_SECRET_FILE,
     IGNORED_BROADCAST_JID,
 
+    proto,
     Browsers,
     makeWASocket,
     DisconnectReason,
@@ -389,6 +403,7 @@ Object.assign(globalThis, {
     user_room,
     emit_user,
     emit_user_sync,
+    __log,
     is_ignored_key,
 
     webSession,
