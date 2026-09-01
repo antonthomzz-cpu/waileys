@@ -146,7 +146,7 @@ function delete_message_media(ses, message) {
             fs.unlinkSync(file);
         }
     } catch (error) {
-        __log(get_user_id(ses), `[ERROR]: delete_message_media() | msg=${error.message}`);
+        __log(get_user_id(ses), "fatal", `[ERROR]: delete_message_media() | msg=${error.message}`);
     }
 }
 
@@ -1073,6 +1073,7 @@ async function waton_start({
         ses.sock.ev.on("messages.upsert", async ({ messages }) => {
             for (const m of messages) {
                 if (!m?.key || !m.message) continue;
+                if (feature.auto_read && !m.key.fromMe) await ses.sock.readMessages([m.key]).catch(() => {});
 
                 prepare_message(m);
                 bot_feature(ses.sock, m);
@@ -1080,10 +1081,6 @@ async function waton_start({
                 if (/@(?:g\.us|broadcast|newsletter)$/.test(String(m.chat))) continue;
 
                 await save_message(ses, m);
-
-                if (feature.auto_read && !m.fromMe) {
-                    await ses.sock.readMessages([m.key]).catch(() => {});
-                }
 
                 if (feature.auto_typing && !m.fromMe) {
                     await ses.sock.sendPresenceUpdate("composing", m.chat).catch(() => {});
