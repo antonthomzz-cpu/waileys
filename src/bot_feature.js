@@ -45,6 +45,10 @@ const FEATURES = Object.freeze({
         aliases: [],
         description: "Buat sticker brat"
     },
+    fetch: {
+        aliases: ["got"],
+        description: "Fetch website data"
+    },
     rvo: {
         aliases: ["viewonce", "save", "get"],
         description: "Ambil media quoted",
@@ -222,6 +226,135 @@ export async function bot_feature(sock, m) {
                 }).toBuffer();
 
                 await m.reply_m({ sticker });
+                break;
+            }
+
+
+            case "fetch": {
+                const url = m.args.join(" ").trim();
+
+                if (!url) return m.reply("Contoh: /fetch https://example.com");
+
+                let parsed;
+
+                try {
+                    parsed = new URL(url);
+                    if (!["http:", "https:"].includes(parsed.protocol)) return m.reply("URL harus menggunakan http:// atau https://");
+                } catch {
+                    return m.reply("URL tidak valid");
+                }
+
+                try {
+                    const response = await got(parsed.toString(), {
+                        responseType: "buffer",
+                        followRedirect: true,
+                        timeout: { request: 30000 },
+                        retry: { limit: 2 },
+                        headers: {
+                            "user-agent":
+                                "Mozilla/5.0 (Linux; Android 11) AppleWebKit/537.36 " +
+                                "(KHTML, like Gecko) Chrome/140.0 Mobile Safari/537.36",
+                            "accept":
+                                "text/html,application/xhtml+xml,application/json," +
+                                "image/avif,image/webp,image/apng,image/svg+xml," +
+                                "video/*,audio/*,*/*;q=0.8"
+                        }
+                    });
+
+                    const buffer = response.body;
+
+                    const contentType =
+                        String(response.headers["content-type"] || "")
+                            .split(";")[0]
+                            .trim()
+                            .toLowerCase();
+
+                    const contentLength = Number(response.headers["content-length"] || buffer.length);
+
+                    if (
+                        contentType.startsWith("text/") ||
+                        contentType.includes("json") ||
+                        contentType.includes("xml") ||
+                        contentType.includes("javascript")
+                    ) {
+                        const text = buffer.toString("utf8");
+                        const MAX_TEXT = 60000;
+
+                        if (text.length > MAX_TEXT) {
+                            return m.reply(
+                                `Content-Type: ${contentType}\n` +
+                                `Status: ${response.statusCode}\n` +
+                                `Ukuran: ${buffer.length} bytes\n\n` +
+                                text.slice(0, MAX_TEXT) +
+                                `\n\n... [dipotong]`
+                            );
+                        }
+
+                        return m.reply(
+                            `Content-Type: ${contentType}\n` +
+                            `Status: ${response.statusCode}\n` +
+                            `Ukuran: ${buffer.length} bytes\n\n` +
+                            text
+                        );
+                    }
+
+                    if (contentType.startsWith("image/")) {
+                        return m.reply_m({
+                            image: buffer,
+                            mimetype: contentType,
+                            caption:
+                                `Content-Type: ${contentType}\n` +
+                                `Ukuran: ${buffer.length} bytes`
+                        });
+                    }
+
+                    if (contentType.startsWith("video/")) {
+                        return m.reply_m({
+                            video: buffer,
+                            mimetype: contentType,
+                            caption:
+                                `Content-Type: ${contentType}\n` +
+                                `Ukuran: ${buffer.length} bytes`
+                        });
+                    }
+
+                    if (contentType.startsWith("audio/")) {
+                        return m.reply_m({
+                            audio: buffer,
+                            mimetype: contentType,
+                            ptt: true
+                        });
+                    }
+
+                    const extensionMap = {
+                        "application/pdf": "pdf",
+                        "application/zip": "zip",
+                        "application/x-rar-compressed": "rar",
+                        "application/x-7z-compressed": "7z",
+                        "application/octet-stream": "bin",
+                        "application/vnd.android.package-archive": "apk"
+                    };
+
+                    const extension = extensionMap[contentType] || parsed.pathname.split(".").pop()?.slice(0, 10) || "bin";
+
+                    return m.reply_m({
+                        document: buffer,
+                        mimetype: contentType || "application/octet-stream",
+                        fileName: `fetch.${extension}`
+                    });
+
+                } catch (error) {
+                    if (error.response) {
+                        return m.reply(
+                            `Fetch gagal\n\n` +
+                            `Status: ${error.response.statusCode || "-"}\n` +
+                            `URL: ${url}`
+                        );
+                    }
+
+                    return m.reply(`Fetch gagal\n\n${error.message || "Unknown error"}`);
+                }
+
                 break;
             }
 
